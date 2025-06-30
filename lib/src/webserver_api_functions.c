@@ -76,6 +76,14 @@ void printHTML(dummy_handler* s, const char *fmt, ...) {
 	va_end ( arg );
 }
 
+#pragma GCC diagnostic ignored "-Wformat-nonliteral"
+void printHeader(dummy_handler* s, const char* fmt, ...) {
+	va_list arg;
+	va_start (arg, fmt);
+	printHeaderChunk(((http_request*)s)->socket, fmt, arg);
+	va_end (arg);
+}
+
 void sendHTML(dummy_handler* s, const char* text, const unsigned int length){
 	/* void sendHTMLChunk(socket_info* sock, const char* text, const unsigned int length) */
 	sendHTMLChunk( ((http_request*) s)->socket, text, length);

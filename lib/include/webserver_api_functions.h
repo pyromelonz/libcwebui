@@ -97,8 +97,10 @@ void sendHTMLVariable(dummy_handler* s,dummy_var* var);
 */
 #ifdef __GNUC__
 	void printHTML(dummy_handler* s,const char *fmt,...) __attribute__((format(printf, 2, 3)));
+	void printHeader(dummy_handler* s, const char* fmt, ...) __attribute__((format(printf, 2, 3)));
 #else
 	void printHTML(dummy_handler* s, const char *fmt, ...);
+	void printHeader( dummy_handler* s, const char* fmt, ...);
 #endif
 
 /*
@@ -398,8 +400,8 @@ typedef enum {
 	WS_FILE_TYPE_XML,
 	WS_FILE_TYPE_XSL,
 	WS_FILE_TYPE_SVG,
-	WS_FILE_TYPE_JSON
-
+	WS_FILE_TYPE_JSON,
+	WS_FILE_TYPE_NONE
 } WS_FILE_TYPES;
 
 typedef WS_FILE_TYPES (*url_handler_func)( dummy_handler* s, const char* url );

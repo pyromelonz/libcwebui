@@ -80,7 +80,7 @@ void printHTML(dummy_handler* s, const char *fmt, ...) {
 void printHeader(dummy_handler* s, const char* fmt, ...) {
 	va_list arg;
 	va_start (arg, fmt);
-	printHeaderChunk(((http_request*)s)->socket, fmt, arg);
+	vprintHeaderChunk(((http_request*)s)->socket, fmt, arg);
 	va_end (arg);
 }
 

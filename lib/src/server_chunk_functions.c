@@ -185,7 +185,7 @@ int isChunkListbigger(list_t* liste, int bytes){
 }
 
 #pragma GCC diagnostic ignored "-Wformat-nonliteral"
-static void vprintHeaderChunk(socket_info* sock, const char *fmt, va_list argptr) {
+void vprintHeaderChunk(socket_info* sock, const char *fmt, va_list argptr) {
 	int l;
 	char *tmp;
 	va_list argcopy;

@@ -295,6 +295,7 @@ const char *getRequestHost(dummy_handler* s);
 */
 char isRequestSecure(dummy_handler *s);
 
+char isHttp1_1(dummy_handler *s);
 /*
       GET Parameter des Requests abfragen
 */

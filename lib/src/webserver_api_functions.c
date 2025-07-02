@@ -393,6 +393,10 @@ char isRequestSecure(dummy_handler *s) {
 #endif
 }
 
+char isHttp1_1(dummy_handler *s) {
+	return ( (http_request*)s)->header->isHttp1_1;
+}
+
 dummy_var* getURLParameter(dummy_handler* s,const char* name) {
 	return (dummy_var*) getParameter((http_request*) s, name);
 }

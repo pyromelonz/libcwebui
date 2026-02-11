@@ -272,7 +272,8 @@ int check_url_functions(http_request* p){
 				case WS_FILE_TYPE_XML:    info.FileType = FILE_TYPE_XML; break;
 				case WS_FILE_TYPE_XSL:    info.FileType = FILE_TYPE_XSL; break;
 				case WS_FILE_TYPE_SVG:    info.FileType = FILE_TYPE_SVG; break;
-				case WS_FILE_TYPE_CUSTOM: info.FileType = FILE_TYPE_CUSTOM; break;
+				case WS_FILE_TYPE_CUSTOM: info.FileType = FILE_TYPE_CUSTOM; break;;
+				case WS_FILE_TYPE_NONE: return 0;
 			}
 			
 			

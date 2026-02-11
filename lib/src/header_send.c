@@ -425,7 +425,7 @@ static void addSessionCookies(http_request* s,WebserverFileInfo *info){
 #endif
 }
 
-
+void _print_response_code(http_request* s, int code);
 void _print_response_code(http_request* s, int code) {
 	const char* text;
 	switch (code) {

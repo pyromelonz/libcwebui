@@ -111,6 +111,7 @@ void sendHTML(dummy_handler* s, const char* text, const unsigned int length);
 		Muss vor sendHTML() aufgerufen werden.
 */
 void ws_set_response_header(dummy_handler* s, const char* name, const char* value);
+void ws_set_response_code(dummy_handler* s, int code);
 
 
 /*
@@ -298,6 +299,7 @@ const char *getRequestHost(dummy_handler* s);
       Ob der Request über eine SSL Verbindung kam
 */
 char isRequestSecure(dummy_handler *s);
+char isRequestHttp1_1(dummy_handler *s);
 
 /*
       GET Parameter des Requests abfragen

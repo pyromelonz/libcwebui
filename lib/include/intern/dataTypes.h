@@ -406,10 +406,9 @@ typedef struct {
 	unsigned char create_cookie;
 	unsigned char create_cookie_ssl;
 
-
-
 	list_t upload_files;
 	list_t custom_response_headers;
+	int response_code;
 
 }http_request;
 

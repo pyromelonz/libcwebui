@@ -331,6 +331,7 @@ int getHttpRequest(socket_info* sock) {
 
 	ws_list_init(&s.upload_files);
 	ws_list_init(&s.custom_response_headers);
+	s.response_code = 200;
 
 	initRenderVariable(&s);
 

@@ -426,8 +426,18 @@ static void addSessionCookies(http_request* s,WebserverFileInfo *info){
 }
 
 
-
-
+void _print_response_code(http_request* s, int code) {
+	const char* text;
+	switch (code) {
+		case 302: text = "Found"; break;
+		case 307: text = "Temporary Redirect"; break;
+		case 404: text = "Not Found"; break;
+		case 500: text = "Internal Server Error"; break;
+		default:
+		case 200: text = "OK"; break;
+	}
+	printHeaderChunk(s->socket, "HTTP/1.%c %d %s\r\n", '0' + !!isRequestHttp1_1(s), code, text);
+}
 
 /*
  * 	p_lenght ist wichtig für die Template Engine
@@ -435,11 +445,8 @@ static void addSessionCookies(http_request* s,WebserverFileInfo *info){
 int sendHeader(http_request* s, WebserverFileInfo *info, int p_lenght) {
 	custom_response_header* h_info;
 
-	if( s->header->isHttp1_1 ){
-		printHeaderChunk(s->socket, "HTTP/1.1 200 OK\r\n");
-	}else{
-		printHeaderChunk(s->socket, "HTTP/1.0 200 OK\r\n");
-	}
+	_print_response_code(s, s->response_code);
+
 	printHeaderChunk(s->socket, "Server: %s\r\n", "libCWebUI");
 
 	addSessionCookies( s , info );

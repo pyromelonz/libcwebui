@@ -92,6 +92,11 @@ void ws_set_response_header(dummy_handler* s, const char* name, const char* valu
 	ws_list_append(&req->custom_response_headers, header, 0);
 }
 
+void ws_set_response_code(dummy_handler* s, int code){
+	http_request* req = (http_request*) s;
+	req->response_code = code;
+}
+
 
 /*****************************************************************************
  *
@@ -396,6 +401,10 @@ char isRequestSecure(dummy_handler *s) {
 #else
 	return 0;
 #endif
+}
+
+char isRequestHttp1_1(dummy_handler *s) {
+	return ((http_request*) s)->header->isHttp1_1;
 }
 
 dummy_var* getURLParameter(dummy_handler* s,const char* name) {

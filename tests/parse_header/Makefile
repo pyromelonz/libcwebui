@@ -53,9 +53,11 @@ FILES= \
 	../../lib/src/variable_store.c \
 	../../lib/src/variable.c \
 	../../lib/src/websockets_send_recv.c \
+	../../lib/src/websockets_streaming.c \
 	../../lib/src/websocket_handler.c \
 	../../lib/src/websockets.c \
 	../../lib/src/webserver_api_functions.c \
+	../../lib/src/reverse_proxy.c \
 	../../lib/platform/linux/platform-file-access.c \
 	../../lib/platform/linux/platform-sockets.c \
 	../../lib/platform/linux/system-unix.c \

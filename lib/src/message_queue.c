@@ -31,6 +31,14 @@ ws_MessageQueue* ws_createMessageQueue( void ){
 	return mq;
 }
 
+void ws_destroyMessageQueue(ws_MessageQueue* mq){
+	if (mq == NULL) return;
+	ws_list_destroy(&mq->entry_list);
+	PlatformDestroyMutex(&mq->lock);
+	PlatformDestroySem(&mq->semid);
+	WebserverFree(mq);
+}
+
 
 void *ws_popQueue(ws_MessageQueue* mq){
 	void* ret;

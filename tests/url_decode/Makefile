@@ -1,9 +1,9 @@
 
-OPTS= -DLINUX -std=c99 -ggdb3
+OPTS= -std=c99 -ggdb3
 #-O2
 
-FLAGS=-I../../lib/ -I../../lib/include/ -I../../lib/include/intern/ -I../../lib/third_party/src/simclist/ -I../../lib/third_party/src/rb_tree/ \
-	-I../../lib/platform/include/ ${OPTS}
+FLAGS=-I. -I../../lib/ -I../../lib/include/ -I../../lib/include/intern/ -I../../lib/third_party/src/simclist/ -I../../lib/third_party/src/rb_tree/ \
+	-I../../lib/third_party/src/is_utf8/ -I../../lib/third_party/src/miniz/ -I../../lib/platform/include/ ${OPTS}
 
 
 FILES=../../lib/src/convert.c

@@ -51,8 +51,9 @@ SPDX-License-Identifier: MPL-2.0
 #define WebServerPrintf		printf
 
 #define FILE_OFFSET			uint64_t
-#define FILE_OFF_PRINT_HEX  "lX"
-#define FILE_OFF_PRINT_INT  PRId64
+#define FILE_OFF_CAST(x) ((intmax_t)(x))
+#define FILE_OFF_PRINT_HEX  PRIxMAX
+#define FILE_OFF_PRINT_INT  PRIdMAX
 
 int strcasecmp(const char *s1, const char *s2);
 

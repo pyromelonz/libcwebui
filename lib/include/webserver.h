@@ -74,6 +74,7 @@ SPDX-License-Identifier: MPL-2.0
 #include "intern/variables_globals.h"
 #include "intern/webserver_log.h"
 #include "intern/webserver_utils.h"
+#include "intern/hashmap.h"
 #include "intern/websockets.h"
 
 #include "is_utf8.h"

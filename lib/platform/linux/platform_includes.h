@@ -63,14 +63,12 @@ SPDX-License-Identifier: MPL-2.0
 
 #define TIME_TYPE time_t
 
-#ifdef __MUSL__
-	#define FILE_OFFSET off_t
-#else
-	#define FILE_OFFSET __off_t
-#endif
-	
-#define FILE_OFF_PRINT_HEX "jX"
-#define FILE_OFF_PRINT_INT "lu"
+/* Use POSIX off_t for portability (works on glibc, musl, etc.) */
+#define FILE_OFFSET off_t
+#define FILE_OFF_CAST(x) ((intmax_t)(x))
+
+#define FILE_OFF_PRINT_HEX PRIxMAX
+#define FILE_OFF_PRINT_INT PRIdMAX
 
 
 #define WS_MUTEX_TYPE		pthread_mutex_t

@@ -1,0 +1,35 @@
+name: FreeBSD Build Tests
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+permissions:
+  contents: read
+
+jobs:
+  freebsd:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        version: ['14.2', '14.1', '13.4']
+
+    name: FreeBSD ${{ matrix.version }}
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Build on FreeBSD
+      uses: vmactions/freebsd-vm@v1
+      with:
+        release: ${{ matrix.version }}
+        usesh: true
+        prepare: |
+          pkg install -y python3 libevent openssl pkgconf gmake
+
+        run: |
+          cd Samples/FreeBSD/SingleMain
+          gmake clean
+          gmake

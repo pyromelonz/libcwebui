@@ -120,9 +120,15 @@ void parseCookies(char *line,int length,HttpRequestHeader *header) {
 
 				*name_end = bak1;
 			}
-			i++;
 
-			name_start = &line[i+1];
+			/* Skip semicolon and any whitespace */
+			i++;
+			while ( i < length - 8 && line[i] == ' ' ) {
+				i++;
+			}
+
+			name_start = &line[i];
+			i--; /* compensate for loop increment */
 
 			continue;
 		}
@@ -151,9 +157,15 @@ void parseCookies(char *line,int length,HttpRequestHeader *header) {
 			value_start = 0;
 			value_end = 0;
 
+			/* Skip semicolon and any whitespace */
 			i++;
-			name_start = &line[i+1];
+			while ( i < length - 8 && line[i] == ' ' ) {
+				i++;
+			}
+
+			name_start = &line[i];
 			name_end = name_start;
+			i--; /* compensate for loop increment */
 
 			state = PARSE_NAME;
 			continue;
@@ -165,12 +177,15 @@ void parseCookies(char *line,int length,HttpRequestHeader *header) {
 	if ( state == PARSE_NAME ) {
 		name_end = &line[i];
 
-		bak1 = *name_end;
-		*name_end = '\0';
+		/* Only create cookie if name is not empty */
+		if ( ( name_end - name_start ) > 0 ){
+			bak1 = *name_end;
+			*name_end = '\0';
 
-		createCookie(header, name_start, name_end - name_start, 0, 0 );
+			createCookie(header, name_start, name_end - name_start, 0, 0 );
 
-		*name_end = bak1;
+			*name_end = bak1;
+		}
 	}
 
 	if ( state == PARSE_VALUE ) {

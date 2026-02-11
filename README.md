@@ -1,6 +1,7 @@
 # libcwebui
 
 [![Build Matrix](https://github.com/lordrasmus/libcwebui/actions/workflows/linux-builds.yml/badge.svg)](https://github.com/lordrasmus/libcwebui/actions/workflows/linux-builds.yml)
+[![Unit Tests](https://github.com/lordrasmus/libcwebui/actions/workflows/unit-tests.yml/badge.svg)](https://github.com/lordrasmus/libcwebui/actions/workflows/unit-tests.yml)
 ![CodeQL](https://github.com/lordrasmus/libcwebui/actions/workflows/github-code-scanning/codeql/badge.svg)
 
 [![Scan Status](https://scan.coverity.com/projects/7148/badge.svg?flat=1)](https://scan.coverity.com/projects/lordrasmus-libcwebui)

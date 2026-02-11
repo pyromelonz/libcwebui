@@ -1,114 +1,101 @@
 TEMPLATE_V1
-{set:render;"title":"Render Variablen"}
+{echo_off}
+{set:render;"title":"Variables"}
+{set:render;"nav_render":"active"}
+{echo_on}
 
 {include:header.inc}
 
 {f:setrvvar}
-
 {b:startSession}
 
-<h4>
-Auf Dieser Seite werden erst die Template Befehle Ausgegeben und dannach das Ergebniss des Befehls
-</h4>
+<h1>Template Variables</h1>
 
+<p class="text-muted">This page demonstrates the template variable system.
+Commands are shown alongside their output using <code>&#123;echo_funcs_on&#125;</code>.</p>
 
-{echo_funcs_on:<tr><td>:<td>} <!-- Der erste Parameter wird vor dem Template Befehl ausgegeben der zweite dannach -->
+{echo_funcs_on:<tr><td class="mono">:<td>}
 
-<table border=1>
-<tr><th>Befehl<th>Ausgabe
-{get:1}
-{get:3}
-{get:"g_test1"}
+<h2>Global Variables</h2>
+<p class="text-small text-muted">Access via <code>&#123;get:global;"name"&#125;</code></p>
+<table>
+    <tr><th>Command</th><th>Output</th></tr>
+    {get:global;"g_test1"}
+    {get:global;"g_test2"}
+    {get:global;"g_test3"}
+    {get:global;"g_test4"}
 </table>
 
-<table><tr><td valign=top>
-
-<table border=1>
-
-
-<tr><td colspan=2><h2>Globale Variablen</h2>
-
-{get:global;"g_test1"}
-{get:global;"g_test2"}
-{get:global;"g_test3"}
-{get:global;"g_test4"}
-
-
-
-<tr><td colspan=2><h2>Render Variablen</h2>
-
-{get:render;"test1"}
-{get:render;"test2"}
-{get:render;"test3"}
-{get:render;"test4"}
-
-
-<tr><td colspan=2><h2>Session Variablen</h2>
-
-{get:session;"test2"}
-{get:session;"test20"}
-
+<h2>Render Variables</h2>
+<p class="text-small text-muted">Access via <code>&#123;get:render;"name"&#125;</code> - scope: current request</p>
+<table>
+    <tr><th>Command</th><th>Output</th></tr>
+    {get:render;"test1"}
+    {get:render;"test2"}
+    {get:render;"test3"}
+    {get:render;"test4"}
 </table>
 
-<td valign=top>
+<h2>Session Variables</h2>
+<p class="text-small text-muted">Access via <code>&#123;get:session;"name"&#125;</code> - scope: user session</p>
+<table>
+    <tr><th>Command</th><th>Output</th></tr>
+    {get:session;"test2"}
+    {get:session;"test20"}
+</table>
 
-<table border=1>
+<h2>Arrays</h2>
+<p class="text-small text-muted">Arrays can be accessed by key or index</p>
 
-<tr><td colspan=2><h2>Arrays</h2>
+<h3>Full Array</h3>
+<table>
+    <tr><th>Command</th><th>Output</th></tr>
+    {get:render;"testarray1"}
+</table>
 
-{get:render;"testarray1"}
+<h3>Access by Key</h3>
+<table>
+    <tr><th>Command</th><th>Output</th></tr>
+    {get:render;"testarray1"["entry_1"]}
+    {get:render;"testarray1"["entry_2"]}
+    {get:render;"testarray1"["entry_3"]}
+    {get:render;"testarray1"["entry_N"]}
+</table>
 
-<tr><td colspan=2><h3>Zugriff &uuml;ber Key</h3>
+<h3>Access by Index</h3>
+<table>
+    <tr><th>Command</th><th>Output</th></tr>
+    {get:render;"testarray1"[0]}
+    {get:render;"testarray1"[1]}
+    {get:render;"testarray1"[2]}
+    {get:render;"testarray1"[3]}
+</table>
 
-{get:render;"testarray1"["entry_1"]}
-{get:render;"testarray1"["entry_2"]}
-{get:render;"testarray1"["entry_3"]}
-{get:render;"testarray1"["entry_N"]}
+<h2>Loops</h2>
+<p class="text-small text-muted">Iterate over arrays with <code>&#123;loop&#125;...&#123;endloop&#125;</code></p>
 
+{echo_funcs_on:<td class="mono">}
 
-<tr><td colspan=2><h3>Zugriff &uuml;ber Index</h3></tr></td>
+<h3>Loop without key variable</h3>
+<table>
+    <tr><th>Command</th><th>Key</th><th>Value</th></tr>
+    <tr><td class="mono">&#123;loop:render;"testarray1":"tmp"&#125;</td><td colspan="2"></td></tr>
+    {loop:render;"testarray1":"tmp"}
+    <tr>{get:render;"key"}{get:render;"tmp"}</tr>
+    {endloop}
+    <tr><td class="mono">&#123;endloop&#125;</td><td colspan="2"></td></tr>
+</table>
 
-{get:render;"testarray1"[0]}
-{get:render;"testarray1"[1]}
-{get:render;"testarray1"[2]}
-{get:render;"testarray1"[3]}
-
-
-
-<tr><td colspan=2><h3><h3>Loops</h3>
-
-{echo_funcs_on:<td>}
-
-<tr style=" border: 0"><td> Variablen Namen für den Loop Index wurde nicht gesetzt </td></tr>
-<tr>{loop:render;"testarray1":"tmp"}
-<tr>{get:render;"key"}{get:render;"tmp"}
-{endloop}
-<tr><td>&#123;endloop&#125;</td></tr>
-
-<tr style="height: 10px ; border: 0"><td> </td></tr>
-
-<tr style=" border: 0"><td> Variablen Namen für den Loop Index wurde auf key gesetzt </td></tr>
-<tr>{loop:render;"testarray1":"tmp":"key"}
-<tr>{get:render;"key"}{get:render;"tmp"}
-{endloop}
-<tr><td>&#123;endloop&#125;</td></tr>
-
-<tr style="height: 10px ; border: 0"><td> </td></tr>
-
-<tr style=" border: 0"><td> Variablen Namen für den Loop Index wurde nicht gesetzt<br>
-aber die Render Variable key existiert noch </td></tr>
-<tr>{loop:render;"testarray1":"tmp"}
-<tr>{get:render;"key"}{get:render;"tmp"}
-{endloop}
-<tr><td>&#123;endloop&#125;</td></tr>
+<h3>Loop with key variable</h3>
+<table>
+    <tr><th>Command</th><th>Key</th><th>Value</th></tr>
+    <tr><td class="mono">&#123;loop:render;"testarray1":"tmp":"key"&#125;</td><td colspan="2"></td></tr>
+    {loop:render;"testarray1":"tmp":"key"}
+    <tr>{get:render;"key"}{get:render;"tmp"}</tr>
+    {endloop}
+    <tr><td class="mono">&#123;endloop&#125;</td><td colspan="2"></td></tr>
+</table>
 
 {echo_funcs_off}
 
-</table>
-
-</table>
-
-
-
 {include:footer.inc}
-

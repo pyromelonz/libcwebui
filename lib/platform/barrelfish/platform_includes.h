@@ -26,8 +26,9 @@ SPDX-License-Identifier: MPL-2.0
 #include <unistd.h>
 
 #define FILE_OFFSET long unsigned int
-#define FILE_OFF_PRINT_HEX  "lX"
-#define FILE_OFF_PRINT_INT  PRId64
+#define FILE_OFF_CAST(x) ((intmax_t)(x))
+#define FILE_OFF_PRINT_HEX  PRIxMAX
+#define FILE_OFF_PRINT_INT  PRIdMAX
 
 #define WS_MUTEX_TYPE int
 #define WS_SEMAPHORE_TYPE int

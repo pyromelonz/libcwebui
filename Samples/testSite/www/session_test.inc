@@ -1,28 +1,49 @@
 TEMPLATE_V1
-{include:session_test_menu.inc}
 
-<br>
+<h2>Test Functions</h2>
+<p class="text-small text-muted">These functions modify session variables to demonstrate the session system.</p>
 
-<!--Session Var test2 :{get:session;"test2"} <- erst nach aufruf von startSession verf&uuml;gbar <br><br>-->
+<div class="info-box">
+    <div class="info-row">
+        <span class="info-label">Session ID</span>
+        <span class="info-value mono">{get:session;"session-id"}</span>
+    </div>
+    <div class="info-row">
+        <span class="info-label">test2</span>
+        <span class="info-value">{get:session;"test2"}</span>
+    </div>
+</div>
 
-Session Var session-id :{get:session;"session-id"} <- kann nur von internen funktionen benutzt werden <br><br>
-
-Session Var test2 :{get:session;"test2"} <- &auml;ndert sich erst nach aufruf von testfunction1 <br><br>
-
-aufruf von &#123;f:testfunction1} Ausgabe : ->{f:testfunction1}<-<br>
-aufruf von &#123;f:testfunction2} Ausgabe : ->{f:testfunction2}<- ( nur ein Funktionsaufruf )<br><br>
-
-<table border=1><tr><td>
-Session Var test1 :{get:session;"test1"}<br>
-Session Var test2 :{get:session;"test2"}<br>
-Session Var test3 :{get:session;"test3"}<br><br>
+<h3>Function Calls</h3>
+<table>
+    <tr><th>Function</th><th>Output</th></tr>
+    <tr>
+        <td class="mono">&#123;f:testfunction1&#125;</td>
+        <td>{f:testfunction1}</td>
+    </tr>
+    <tr>
+        <td class="mono">&#123;f:testfunction2&#125;</td>
+        <td>{f:testfunction2}</td>
+    </tr>
+    <tr>
+        <td class="mono">&#123;f:testfunction3&#125;</td>
+        <td>{f:testfunction3}</td>
+    </tr>
 </table>
-aufruf von &#123;f:testfunction3} Ausgabe : ->{f:testfunction3}<-<br>
-<br>
 
-{b:dumpSessionStore}<br>
-
-
-aufruf von &#123;f:testfunction4}{f:testfunction4}<br>
-
-{b:dumpSessionStore}<br>
+<h3>Session Variables After Function Calls</h3>
+<table>
+    <tr><th>Variable</th><th>Value</th></tr>
+    <tr>
+        <td class="mono">test1</td>
+        <td>{get:session;"test1"}</td>
+    </tr>
+    <tr>
+        <td class="mono">test2</td>
+        <td>{get:session;"test2"}</td>
+    </tr>
+    <tr>
+        <td class="mono">test3</td>
+        <td>{get:session;"test3"}</td>
+    </tr>
+</table>

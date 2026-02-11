@@ -182,50 +182,55 @@ unsigned long dumpSocketsSize(int *count) {
 
 void dumpSockets(http_request* s) {
 	socket_info* sock;
+	const char *type_str;
+	const char *ssl_str;
+	const char *close_str;
+	const char *ws_str;
 
 	PlatformLockMutex(&socks_mutex);
-
 	ws_list_iterator_start(&sock_list);
 
-
-
 	while ((sock = (socket_info*) ws_list_iterator_next(&sock_list))) {
-		printHTMLChunk(s->socket, "<tr><td>");
-
+		/* Determine socket type */
 		if (sock->server == 1) {
-			printHTMLChunk(s->socket, "Server Socket");
-		}
-		if (sock->client == 1) {
-			printHTMLChunk(s->socket, "Client Socket %s", sock->client_ip_str);
+			type_str = "Server";
+		} else if (sock->client == 1) {
+			type_str = sock->client_ip_str;
+		} else {
+			type_str = "-";
 		}
 
-		printHTMLChunk(s->socket, "<td>%d<td>%"PRIu32"<td>", sock->port, getSocketInfoSize(sock));
-
+		/* SSL status */
 #ifdef WEBSERVER_USE_SSL
-		if (sock->use_ssl == 1) {
-			printHTMLChunk(s->socket, "active ");
-		}
+		ssl_str = (sock->use_ssl == 1) ? "yes" : "-";
+#else
+		ssl_str = "-";
 #endif
 
+		/* Close status */
+		close_str = (sock->closeSocket == 1) ? "yes" : "-";
 
-		printHTMLChunk(s->socket, "<td>");
-		if (sock->closeSocket == 1) {
-			printHTMLChunk(s->socket, "close ");
-		}
-
+		/* WebSocket status */
 #ifdef WEBSERVER_USE_WEBSOCKETS
-		printHTMLChunk(s->socket, "<td>");
-		if (sock->isWebsocket == 1) {
-			printHTMLChunk(s->socket, "active ");
-		}
+		ws_str = (sock->isWebsocket == 1) ? "yes" : "-";
+#else
+		ws_str = "-";
 #endif
 
+		printHTMLChunk(s->socket,
+			"<tr>"
+				"<td>%s</td>"
+				"<td>%d</td>"
+				"<td>%"PRIu32"</td>"
+				"<td>%s</td>"
+				"<td>%s</td>"
+				"<td>%s</td>"
+			"</tr>",
+			type_str, sock->port, getSocketInfoSize(sock),
+			ssl_str, close_str, ws_str);
 	}
-
-
 
 	ws_list_iterator_stop(&sock_list);
 	PlatformUnlockMutex(&socks_mutex);
-
 }
 

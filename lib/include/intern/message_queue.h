@@ -26,5 +26,6 @@ typedef struct {
 }ws_MessageQueue;
 
 ws_MessageQueue* ws_createMessageQueue(void);
+void ws_destroyMessageQueue(ws_MessageQueue* mq);
 void *ws_popQueue(ws_MessageQueue* mq);
 void ws_pushQueue(ws_MessageQueue* mq,void* element);

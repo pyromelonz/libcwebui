@@ -56,7 +56,7 @@ static void websocket_input_thread_function( void ) {
 	while (1) {
 		msg = (websocket_queue_msg*) ws_popQueue(websocket_input_queue);
 
-		handleWebsocketConnection(msg->signal, msg->guid, msg->url,1 , (char*)msg->msg, msg->len);
+		handleWebsocketConnection(msg->signal, msg->guid, msg->url, msg->binary, (char*)msg->msg, msg->len);
 
 		WebserverFree(msg->guid);
 		WebserverFree(msg->msg);
@@ -127,13 +127,20 @@ void initWebsocketApi(void) {
 	websocket_output_queue = ws_createMessageQueue();
 	PlatformCreateThread(&websocket_input_thread, websocket_input_thread_function);
 	PlatformCreateThread(&websocket_output_thread, websocket_output_thread_function);
-
+	initWebsocketStreaming();
 }
 
 void initWebsocketStructures(socket_info* sock) {
 	sock->websocket_buffer = (unsigned char*) WebserverMalloc( WEBSOCKET_INIT_INBUFFER_SIZE );
 	sock->websocket_guid = (char*) WebserverMalloc( WEBSERVER_GUID_LENGTH + 1);
 
+	/* Initialize streaming state */
+	sock->websocket_streaming_active = 0;
+	sock->websocket_stream_fragmented = 0;
+	sock->websocket_stream_remaining = 0;
+	sock->websocket_stream_mask_offset = 0;
+	sock->websocket_stream_ctx = NULL;
+	sock->websocket_stream_handler = NULL;
 }
 
 int checkIskWebsocketConnection(socket_info* sock) {
@@ -163,22 +170,60 @@ int checkIskWebsocketConnection(socket_info* sock) {
 		return 0;
 	}
 
-	if (0 != strstr(header->Connection, "Upgrade")) { /* Firefox sendet keep-alive, Upgrade */
-		if ((0 == strcmp(header->Upgrade, "websocket")) || (0 == strcmp(header->Upgrade, "WebSocket")) || (0 == strcmp(header->Upgrade, "Websocket"))  ) {
-
-			if ( header->SecWebSocketVersion < 13 ){
-				printHeaderChunk(sock,"HTTP/1.1 400 Bad Request Websocket Version < 13\r\n");
-				printHeaderChunk(sock,"\r\n");
-				#ifdef _WEBSERVER_HEADER_DEBUG_
-				LOG(HEADER_PARSER_LOG,NOTICE_LEVEL,sock->socket,"Websocket Handshake Error: Version ( %d ) is < 13",header->SecWebSocketVersion);
-				#endif
-				header->isWebsocket = 2; // falsche websocket version
-				return 1;
+	/* RFC 7230: Connection header is a comma-separated list of tokens.
+	 * Check that "Upgrade" is a complete token, not a substring.
+	 * Example: "keep-alive, Upgrade" or "Upgrade" */
+	{
+		int upgrade_found = 0;
+		const char* p = header->Connection;
+		while (*p) {
+			/* Skip leading whitespace */
+			while (*p == ' ' || *p == '\t') p++;
+			/* Find end of token (comma or end of string) */
+			const char* token_start = p;
+			while (*p && *p != ',') p++;
+			/* Calculate token length, trim trailing whitespace */
+			size_t token_len = p - token_start;
+			while (token_len > 0 && (token_start[token_len-1] == ' ' || token_start[token_len-1] == '\t')) {
+				token_len--;
 			}
+			/* Check if token matches "Upgrade" (case-insensitive) */
+			if (token_len == 7 &&
+			    (token_start[0] == 'U' || token_start[0] == 'u') &&
+			    (token_start[1] == 'p' || token_start[1] == 'P') &&
+			    (token_start[2] == 'g' || token_start[2] == 'G') &&
+			    (token_start[3] == 'r' || token_start[3] == 'R') &&
+			    (token_start[4] == 'a' || token_start[4] == 'A') &&
+			    (token_start[5] == 'd' || token_start[5] == 'D') &&
+			    (token_start[6] == 'e' || token_start[6] == 'E')) {
+				upgrade_found = 1;
+				break;
+			}
+			/* Skip comma */
+			if (*p == ',') p++;
+		}
+		if (!upgrade_found) {
+			return 0;
+		}
+	}
 
-			header->isWebsocket = 1; // websocket ok
+	/* RFC 6455: Upgrade header value is case-insensitive */
+	if (0 == strcasecmp(header->Upgrade, "websocket")) {
+
+		if ( header->SecWebSocketVersion < 13 ){
+			/* RFC 6455 Section 4.4: Send supported version(s) in response */
+			printHeaderChunk(sock,"HTTP/1.1 426 Upgrade Required\r\n");
+			printHeaderChunk(sock,"Sec-WebSocket-Version: 13\r\n");
+			printHeaderChunk(sock,"\r\n");
+			#ifdef _WEBSERVER_HEADER_DEBUG_
+			LOG(HEADER_PARSER_LOG,NOTICE_LEVEL,sock->socket,"Websocket Handshake Error: Version ( %d ) is < 13",header->SecWebSocketVersion);
+			#endif
+			header->isWebsocket = 2; // falsche websocket version
 			return 1;
 		}
+
+		header->isWebsocket = 1; // websocket ok
+		return 1;
 	}
 	return 0;
 }
@@ -283,10 +328,12 @@ long getWebsocketStoreTimeout ( char* guid ){
 		return -1;
 	}
 
-	long timeout = getConfigInt("session_timeout") - tmp;
-	if ( timeout < 0 ){
+	long session_timeout = getConfigInt("session_timeout");
+	/* Check before subtraction to avoid potential overflow */
+	if ( tmp > session_timeout ){
 		return -1;
 	}
+	long timeout = session_timeout - tmp;
 
 	/*http_request *s = sock->s;
 	if ( s == 0 ) return ULONG_MAX;

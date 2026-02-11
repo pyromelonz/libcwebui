@@ -47,6 +47,7 @@ typedef struct {
 	char* url;
 	unsigned char* msg;
 	WEBSOCK_LEN_T len;
+	char binary;
 }websocket_queue_msg WEBSOCK_LEN_ALLIGN ;
 
 #ifdef __cplusplus
@@ -84,6 +85,17 @@ void sendCloseFrame2(const char* guid);
 
 
 void websocket_event_handler(socket_info* sock, EVENT_TYPES event_type);
+
+/* Internal streaming functions */
+void initWebsocketStreaming(void);
+void cleanupWebsocketStreaming(void);
+websocket_stream_handler_entry* findWebsocketStreamHandler(const char* url);
+int startWebsocketStream(socket_info *sock, uint64_t frame_length,
+                         unsigned char opcode, unsigned char* mask,
+                         websocket_stream_handler_entry* handler,
+                         char fragmented);
+int continueWebsocketStream(socket_info *sock);
+void freeWebsocketStreamContext(struct websocket_stream_context* ctx);
 
 #ifdef __cplusplus
 }

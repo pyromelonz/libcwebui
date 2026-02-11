@@ -108,20 +108,29 @@ int find_tag_end_pos ( const char *pagedata,int datalenght,const char *start_tag
 
   do {
     pos1 = stringnfind ( ( char* ) pagedata+offset,end_tag,datalenght-offset );
-    if ( pos1> 0 ) {
-      level--;
-    } else {
+    if ( pos1 <= 0 ) {
       LOG ( TEMPLATE_LOG,NOTICE_LEVEL,0,"Endtag < %s > not found",end_tag );
       return -1;
     }
+    level--;
 
     pos2 = stringnfind ( ( char* ) pagedata+offset,start_tag,pos1 );
     if ( pos2>0 ){
       level++;
     }
-    offset+=pos1;
+
+    /* Overflow check: ensure offset + pos1 stays within bounds and doesn't overflow */
+    if ( offset > datalenght - pos1 ) {
+      LOG ( TEMPLATE_LOG,ERROR_LEVEL,0,"%s","Tag parsing overflow detected" );
+      return -1;
+    }
+    offset += pos1;
   } while ( level > 0 );
 
-  return offset+1;
+  /* offset <= datalenght is guaranteed, check offset+1 won't overflow */
+  if ( offset > INT_MAX - 1 ) {
+    return -1;
+  }
+  return offset + 1;
 
 }

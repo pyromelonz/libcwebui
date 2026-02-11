@@ -1,47 +1,51 @@
 TEMPLATE_V1
 
+<!-- Site Header -->
+<h1 class="site-title">libcwebui</h1>
+<p class="site-subtitle">Template Engine Demo</p>
 
-{f:menustart}
-<table>
-	<tr><td>
-		<table width=200>
-			<tr><td><a class=inaktive href={b:link}/index.html>Index ( Auto Link )</a>
-			<tr><td><a class={get:render;"mp1_class"} href={b:link_std}/index.html>Normal</a>
-{if:is_ssl_available}
-			<a class={get:render;"mp2_class"} href={b:link_ssl}/index.html>SSL</a>
-			<tr><td><a class={get:render;"mp3_class"} href={b:link_ssl}/register.html>Register SSL</a>
-			<tr><td><a class={get:render;"mp4_class"} href={b:link_ssl}/unregister.html>Unregister SSL</a>
-{endif}
+<!-- Memory Stats - shows {f:...} function calls -->
+<div class="memory-stats">
+    <div class="memory-stats-title">Memory</div>
+    {f:memoryInfos}
+</div>
 
-			<tr><td><a class={get:render;"mp5_class"} href={b:link_std}/render_variablen.html>Render Variablen</a>
-{if:is_ssl_available}
-			<a class={get:render;"mp6_class"} href={b:link_ssl}/render_variablen.html>SSL</a>
-{endif}
+<!-- Navigation - shows {if:...} conditions and {get:render;"..."} -->
+<nav>
 
-			<tr><td><a class={get:render;"mp7_class"} href={b:link_std}/session_storage.html>Session Storage</a>
+    <div class="nav-section">
+        <div class="nav-section-title">General</div>
+        <a class="nav-link {get:render;"nav_index"}" href="{b:link}/index.html">Index</a>
+        <a class="nav-link {get:render;"nav_memory"}" href="{b:link}/memory_info.html?menu=0">System Info</a>
+    </div>
+
+    <div class="nav-section">
+        <div class="nav-section-title">Template Features</div>
+        <a class="nav-link {get:render;"nav_render"}" href="{b:link}/render_variablen.html">Variables</a>
+        <a class="nav-link {get:render;"nav_session"}" href="{b:link}/session_storage.html">Session Storage</a>
+        <a class="nav-link {get:render;"nav_if"}" href="{b:link}/if_test.html">Conditions</a>
+    </div>
+
 {if:is_ssl_available}
-			<a class={get:render;"mp8_class"} href={b:link_ssl}/session_storage.html>SSL</a>
+    <div class="nav-section">
+        <div class="nav-section-title">SSL</div>
+        <a class="nav-link {get:render;"nav_register"}" href="{b:link_ssl}/register.html">Register</a>
+        <a class="nav-link {get:render;"nav_unregister"}" href="{b:link_ssl}/unregister.html">Unregister</a>
+    </div>
 {endif}
-			
-			<tr><td><a class={get:render;"mp11_class"} href={b:link_std}/memory_info.html?menu=0>Memory Info</a>
 
 {if:is_websockets_available}
-			<tr><td><a class={get:render;"mp12_class"} href={b:link_std}/websocket.html>Websocket Test</a>
-{endif}
-			
-			<tr><td><a class={get:render;"mp13_class"} href={b:link_std}/ajax_test.html>AJAX Test</a>
-{if:is_ssl_available}
-			<a class={get:render;"mp14_class"} href={b:link_ssl}/ajax_test.html>SSL</a>
-{endif}
-			<tr><td><a class={get:render;"mp15_class"} href={b:link_std}/if_test.html>IF Test</a>
-{if:is_ssl_available}
-			<a class={get:render;"mp16_class"} href={b:link_ssl}/if_test.html>SSL</a>
+    <div class="nav-section">
+        <div class="nav-section-title">Interactive</div>
+        <a class="nav-link {get:render;"nav_websocket"}" href="{b:link}/websocket.html">WebSocket</a>
+        <a class="nav-link {get:render;"nav_ajax"}" href="{b:link}/ajax_test.html">AJAX</a>
+    </div>
 {endif}
 
-			<tr><td><a class={get:render;"mp17_class"} href={b:link_std}/python.html>Python API</a>
-			
-			<tr><td><a class={get:render;"mp18_class"} href={b:link_std}/file_upload.html>File Upload</a>
+    <div class="nav-section">
+        <div class="nav-section-title">Extensions</div>
+        <a class="nav-link {get:render;"nav_python"}" href="{b:link}/python.html">Python API</a>
+        <a class="nav-link {get:render;"nav_upload"}" href="{b:link}/file_upload.html">File Upload</a>
+    </div>
 
-		</table>
-</table>
-<br>
+</nav>

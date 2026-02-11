@@ -38,7 +38,7 @@ void engine_includeFile(http_request *s, const char* prefix, FUNCTION_PARAS* fun
 	file = getFile(func->parameter[0].text);
 	if (file == 0) {
 		#ifdef _WEBSERVER_TEMPLATE_DEBUG_
-		WebServerPrintf("File : %s not found\n",func->para1);
+		WebServerPrintf("File : %s not found\n",func->parameter[0].text);
 		#endif
 		printHTMLChunk(s->socket, "<font color=\"#FF0000\" >include %s not found</font>", func->parameter[0].text);
 		return;
@@ -46,7 +46,7 @@ void engine_includeFile(http_request *s, const char* prefix, FUNCTION_PARAS* fun
 
 	if ( 0 == prepare_file_content( file ) ){
 		#ifdef _WEBSERVER_TEMPLATE_DEBUG_
-		WebServerPrintf("File : %s error loading content \n",func->para1);
+		WebServerPrintf("File : %s error loading content \n",func->parameter[0].text);
 		#endif
 
 		printHTMLChunk(s->socket, "<font color=\"#FF0000\" >include %s read error</font>", func->parameter[0].text);

@@ -1,39 +1,43 @@
 TEMPLATE_V1
+{echo_off}
 {set:render;"title":"AJAX Test"}
+{set:render;"nav_ajax":"active"}
+{echo_on}
 
 {include:header.inc}
 
-<h1>AJAX Demo</h1><br>
-<h2>zum Testen von vielen gleichzeitigen verbindungen</h2><br>
+<h1>AJAX Demo</h1>
 
-<div id=hook></div>
+<p class="text-muted">This page tests multiple simultaneous AJAX connections to the server.</p>
 
+<h2>Concurrent Requests</h2>
+<p class="text-small text-muted">80 parallel XMLHttpRequest calls are made when this page loads.
+Each request updates its corresponding element when complete.</p>
 
+<div class="info-box" id="hook"></div>
 
 <script type="text/javascript">
-	function handler () {	
-		if (this.readyState == 4){
-			if (this.status == 200){		
-				this.sender.innerHTML = this.responseText;											
-			}
-		}
-	}
+    function handler() {
+        if (this.readyState == 4) {
+            if (this.status == 200) {
+                this.sender.innerHTML = this.responseText;
+            }
+        }
+    }
 
-	var hook = document.getElementById("hook");
-	
-	for( var i=0;i<80;i++){
-		var tmp = document.createElement("span"); 
-		tmp.innerHTML = "<font color=red>Test" + i + " </font>";
-		hook.appendChild(tmp);
-	
-		var invocation = new XMLHttpRequest();		
-		invocation.open('GET', "ajax_data.html?id="+i, true);									
-		invocation.onreadystatechange = handler;
-		invocation.sender = tmp;	
-		invocation.send(null); 		
-	}
-	
-	
+    var hook = document.getElementById("hook");
+
+    for (var i = 0; i < 80; i++) {
+        var tmp = document.createElement("span");
+        tmp.innerHTML = "<span class='status-error'>Request " + i + " </span>";
+        hook.appendChild(tmp);
+
+        var invocation = new XMLHttpRequest();
+        invocation.open('GET', "ajax_data.html?id=" + i, true);
+        invocation.onreadystatechange = handler;
+        invocation.sender = tmp;
+        invocation.send(null);
+    }
 </script>
 
 {include:footer.inc}

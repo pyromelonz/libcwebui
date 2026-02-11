@@ -124,13 +124,9 @@ int PlatformGetFileInfo(WebserverFileInfo* file, int* time_changed, int *new_siz
 		return 0;
 	}
 
-#ifdef __USE_MISC
-	f_sec = st.st_mtim.tv_sec;
-	f_nsec = st.st_mtim.tv_nsec;
-#else
-	f_sec  = st.st_mtime;
-	f_nsec = st.st_mtimensec;
-#endif
+	/* macOS uses BSD-style st_mtimespec */
+	f_sec = st.st_mtimespec.tv_sec;
+	f_nsec = st.st_mtimespec.tv_nsec;
 
 	*new_size = st.st_size;
 	*time_changed = 0;

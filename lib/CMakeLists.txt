@@ -73,6 +73,7 @@ src/system_sockets_select.c
 src/system_sockets_recv.c
 src/system_sockets_send.c
 src/utils.c
+src/hashmap.c
 src/variable.c
 src/variable_store.c
 src/variable_render.c

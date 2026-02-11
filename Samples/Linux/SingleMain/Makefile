@@ -25,7 +25,9 @@ FILES= \
 	../../../lib/src/variable_global.c              ../../../lib/src/variable_render.c \
 	../../../lib/src/variable_store.c               ../../../lib/src/webserver_api_functions.c \
 	../../../lib/src/websocket_handler.c            ../../../lib/src/websockets.c \
-	../../../lib/src/websockets_send_recv.c         ../../../lib/ssl/openssl.c \
+	../../../lib/src/websockets_send_recv.c         ../../../lib/src/websockets_streaming.c \
+	../../../lib/src/reverse_proxy.c                ../../../lib/src/hashmap.c \
+	../../../lib/ssl/openssl.c \
 	../../../lib/platform/linux/platform-file-access.c \
 	../../../lib/platform/linux/platform-sockets.c \
 	../../../lib/platform/linux/system-unix.c \
@@ -54,7 +56,7 @@ FLAGS= -I . -I../../../lib/include -I../../../lib/third_party/src/miniz/ -I../..
 	-Werror=format \
 	-DMINIZ_NO_ARCHIVE_APIS -DMINIZ_NO_ZLIB_COMPATIBLE_NAMES
 
-LIBS=-lc -lssl -lcrypto -ldl -lpthread -levent -levent_pthreads -lz -lstdc++
+LIBS=-lc -lssl -lcrypto -ldl -lpthread -levent -levent_pthreads -lstdc++
 
 .SILENT:
 all: testSite

@@ -22,6 +22,7 @@ SPDX-License-Identifier: MPL-2.0
 #include "webserver.h"
 
 #include "intern/system_file_access.h"
+#include "intern/reverse_proxy.h"
 
 #ifdef DMALLOC
 #include <dmalloc/dmalloc.h>
@@ -35,6 +36,7 @@ void WebserverPrintShortInfos(void);
 
 static void endHTTPRequest(http_request *s) {
 	upload_file_info * f_info;
+	custom_response_header * h_info;
 
 	clearRenderVariables(s);
 	if (s->store != 0){
@@ -51,8 +53,15 @@ static void endHTTPRequest(http_request *s) {
 		WebserverFree(f_info->data);
 		WebserverFree(f_info);
 	}
-
 	ws_list_iterator_stop(&s->upload_files);
+
+	ws_list_iterator_start(&s->custom_response_headers);
+	while( ( h_info = (custom_response_header*)ws_list_iterator_next(&s->custom_response_headers) ) ){
+		WebserverFree(h_info->name);
+		WebserverFree(h_info->value);
+		WebserverFree(h_info);
+	}
+	ws_list_iterator_stop(&s->custom_response_headers);
 }
 
 
@@ -210,7 +219,6 @@ void register_url_function( char* url, url_handler_func func ){
 		
 		entry->next = f;
 	}
-	
 }
 
 int check_url_functions(http_request* p){
@@ -224,14 +232,22 @@ int check_url_functions(http_request* p){
 	struct url_functions *f = url_funcs;
 	
 	while( f != 0 ){
-		
+
 		char* f_url = f->url;
-		
+		int is_prefix_match = 0;
+
 		if ( f->url[0] == '/' ){
 			f_url = &f->url[1];
 		}
-	
-		if ( 0 == strcmp( p->header->url, f_url ) ){
+
+		// Check if URL ends with '/' - if so, treat as prefix match
+		int url_len = strlen(f_url);
+		if ( url_len > 0 && f_url[url_len - 1] == '/' ){
+			is_prefix_match = 1;
+		}
+
+		if ( (is_prefix_match && 0 == strncmp( p->header->url, f_url, url_len )) ||
+		     (!is_prefix_match && 0 == strcmp( p->header->url, f_url )) ){
 			
 			// nochmal nachsehen wie man das anmachen kann
 			// p->socket->use_output_compression = 1;
@@ -248,14 +264,15 @@ int check_url_functions(http_request* p){
 			
 			info.FileType = FILE_TYPE_PLAIN;
 			switch ( ret ){
-				case WS_FILE_TYPE_PLAIN: info.FileType = FILE_TYPE_PLAIN; break;
-				case WS_FILE_TYPE_JSON:  info.FileType = FILE_TYPE_JSON; break;
-				case WS_FILE_TYPE_HTML:  info.FileType = FILE_TYPE_HTML; break;
-				case WS_FILE_TYPE_CSS:   info.FileType = FILE_TYPE_CSS; break;
-				case WS_FILE_TYPE_JS:    info.FileType = FILE_TYPE_JS; break;
-				case WS_FILE_TYPE_XML:   info.FileType = FILE_TYPE_XML; break;
-				case WS_FILE_TYPE_XSL:   info.FileType = FILE_TYPE_XSL; break;
-				case WS_FILE_TYPE_SVG:   info.FileType = FILE_TYPE_SVG; break;
+				case WS_FILE_TYPE_PLAIN:  info.FileType = FILE_TYPE_PLAIN; break;
+				case WS_FILE_TYPE_JSON:   info.FileType = FILE_TYPE_JSON; break;
+				case WS_FILE_TYPE_HTML:   info.FileType = FILE_TYPE_HTML; break;
+				case WS_FILE_TYPE_CSS:    info.FileType = FILE_TYPE_CSS; break;
+				case WS_FILE_TYPE_JS:     info.FileType = FILE_TYPE_JS; break;
+				case WS_FILE_TYPE_XML:    info.FileType = FILE_TYPE_XML; break;
+				case WS_FILE_TYPE_XSL:    info.FileType = FILE_TYPE_XSL; break;
+				case WS_FILE_TYPE_SVG:    info.FileType = FILE_TYPE_SVG; break;
+				case WS_FILE_TYPE_CUSTOM: info.FileType = FILE_TYPE_CUSTOM; break;;
 				case WS_FILE_TYPE_NONE: return 0;
 			}
 			
@@ -278,6 +295,27 @@ int check_url_functions(http_request* p){
 
 
 /****************************************************************************
+ *
+ *   Sanitize string for use in HTTP headers - removes CR/LF to prevent
+ *   HTTP Response Splitting attacks
+ *
+ ***************************************************************************/
+
+static void sanitize_header_value(char* dest, const char* src, size_t dest_size) {
+	size_t j = 0;
+
+	if (dest_size == 0) return;
+
+	for (size_t i = 0; src[i] != '\0' && j < dest_size - 1; i++) {
+		/* Filter CR, LF to prevent header injection */
+		if (src[i] != '\r' && src[i] != '\n') {
+			dest[j++] = src[i];
+		}
+	}
+	dest[j] = '\0';
+}
+
+/****************************************************************************
  *																	 	    *
  *	  getHttpRequest(int sock)	:   Hauptfunktion des Servers 			    *
  *																		    *
@@ -293,6 +331,7 @@ int getHttpRequest(socket_info* sock) {
 	memset(&s, 0, sizeof(http_request));
 
 	ws_list_init(&s.upload_files);
+	ws_list_init(&s.custom_response_headers);
 
 	initRenderVariable(&s);
 
@@ -354,6 +393,12 @@ int getHttpRequest(socket_info* sock) {
 #ifdef _WEBSERVER_DEBUG_
 		WebServerPrintf ( "  ... OK builtin Site\n" );
 #endif
+	} else if ( sock->reverse_proxy_error == 1 ) {
+		WebServerPrintf ( "  ... OK Reverse Proxy Error\n" );
+		
+		
+		reverse_proxy_gen_error_msg( &s );
+		
 	} else {
 		ws_variable *download;
 
@@ -369,9 +414,12 @@ int getHttpRequest(socket_info* sock) {
 		if ( file && download ) {
 			file->ForceDownload = 1;
 			if ( download->type == VAR_TYPE_STRING ){
-				strncpy((char*)file->ForceDownloadName,download->val.value_string,FORCE_DOWNLOAD_NAME_LENGTH-1);
+				/* Sanitize to prevent HTTP Response Splitting via CR/LF injection */
+				sanitize_header_value((char*)file->ForceDownloadName,
+				                      download->val.value_string,
+				                      FORCE_DOWNLOAD_NAME_LENGTH);
 			}else{
-				strcpy((char*)file->ForceDownloadName,"");
+				file->ForceDownloadName[0] = '\0';
 			}
 		}
 

@@ -180,7 +180,7 @@ void WebserverConnectionManagerCloseRequest(socket_info* sock) {
 		insert_websocket_input_queue( msg);
 		
 #if _WEBSERVER_CONNECTION_DEBUG_ > 1
-		LOG ( CONNECTION_LOG,NOTICE_LEVEL, sock->socket, "Websocket Close Request","" );
+		LOG ( CONNECTION_LOG,NOTICE_LEVEL, sock->socket, "Websocket Close Request" );
 #endif
 	}
 #endif
@@ -218,8 +218,9 @@ static int recv_post_payload( socket_info* sock, const char* buffer, uint32_t le
 	*/
 
 	if ( sock->header->post_buffer == 0 ){
+		/* WebserverMalloc ruft exit(1) bei Fehler auf, kann nicht NULL zurückgeben */
 		sock->header->post_buffer = WebserverMalloc( sock->header->contentlenght + 1 );
-		/* um Payload Buffer neim Debug ausgeben zu können */
+		/* um Payload Buffer beim Debug ausgeben zu können */
 		sock->header->post_buffer[sock->header->contentlenght] = '\0';
 
 		call_pre_post_handler( sock );
@@ -266,7 +267,7 @@ static int check_post_header( socket_info* sock ){
 
 	//LOG(CONNECTION_LOG,NOTICE_LEVEL,sock->socket,"header->contentlenght %" PRIu64 " ",sock->header->contentlenght );
 
-	if ( sock->header->contentlenght > getConfigInt("max_post_size") ){
+	if ( sock->header->contentlenght > (uint64_t)getConfigInt("max_post_size") ){
 		LOG(CONNECTION_LOG,ERROR_LEVEL,sock->socket,"header->contentlenght > max_post_size ( %" PRIu64 " > %d ) ",sock->header->contentlenght, getConfigInt("max_post_size") );
 		return -1;
 	}
@@ -299,7 +300,14 @@ static int check_post_header( socket_info* sock ){
  */
 
 static int handleClientHeaderData(socket_info* sock) {
-	int len2;
+	/*
+	 * len2 must be initialized to -6 (no complete line recognized).
+	 * When the header buffer is full, recv() is skipped and we jump directly
+	 * to the ParseHeader check. If header_complete == 1 (e.g. during POST body
+	 * handling), ParseHeader is also skipped, and len2 would be uninitialized.
+	 * With -6 as default, we safely return 0 and wait for more data.
+	 */
+	int len2 = -6;
 	unsigned int buffer_length = WEBSERVER_MAX_HEADER_LINE_LENGHT * 1;
 	unsigned int parsed = 0;
 
@@ -330,7 +338,7 @@ static int handleClientHeaderData(socket_info* sock) {
 
 			if ((len == CLIENT_DISCONNECTED) || (len == CLIENT_UNKNOWN_ERROR) || (len == SSL_PROTOCOL_ERROR)) {
 #if _WEBSERVER_CONNECTION_DEBUG_ > 1
-				LOG ( CONNECTION_LOG,NOTICE_LEVEL,sock->socket,"Client Disconnected","" );
+				LOG ( CONNECTION_LOG,NOTICE_LEVEL,sock->socket,"Client Disconnected" );
 #endif
 				sock->closeSocket = 1;
 				return -1;
@@ -424,6 +432,13 @@ static int handleClientHeaderData(socket_info* sock) {
 					LOG ( HEADER_PARSER_LOG,NOTICE_LEVEL,sock->socket,"%s","POST Method Header Error" );
 					return -1;
 				}
+
+				/* POST ohne Body (Content-Length: 0) direkt verarbeiten */
+				if ( sock->header->contentlenght == 0 ) {
+					sock->header->header_complete = 0;
+					return 1;
+				}
+
 				// Das muss hier sein weil noch Teil der Daten im Header Buffer sein können
 				if ( 1 == recv_post_payload( sock, sock->header_buffer, sock->header_buffer_pos )){
 					sock->header->header_complete = 0;
@@ -446,6 +461,12 @@ static int handleClientHeaderData(socket_info* sock) {
 					sendMethodBadRequest(sock);
 					LOG ( HEADER_PARSER_LOG,NOTICE_LEVEL,sock->socket,"%s","POST Method Header Error" );
 					return -1;
+				}
+
+				/* POST ohne Body (Content-Length: 0) direkt verarbeiten */
+				if ( sock->header->contentlenght == 0 ) {
+					sock->header->header_complete = 0;
+					return 1;
 				}
 
 				/* Header ist zuende aber der POST Payload fehlt noch */
@@ -501,7 +522,7 @@ static int handleClient(socket_info* sock) {
 	int ret;
 
 #ifdef _WEBSERVER_SOCKET_DEBUG_
-	LOG ( CONNECTION_LOG,NOTICE_LEVEL,sock->socket,"Client Data","" );
+	LOG ( CONNECTION_LOG,NOTICE_LEVEL,sock->socket,"Client Data" );
 #endif
 
 
@@ -520,7 +541,7 @@ static int handleClient(socket_info* sock) {
 		if ( sock->header->isWebsocket == 1 )
 		{
 			#if _WEBSERVER_CONNECTION_DEBUG_ > 1
-				LOG ( CONNECTION_LOG,NOTICE_LEVEL,sock->socket,"Websocket Connected","" );
+				LOG ( CONNECTION_LOG,NOTICE_LEVEL,sock->socket,"Websocket Connected" );
 			#endif
 			initWebsocketStructures(sock);
 			sock->isWebsocket = 1;
@@ -533,7 +554,7 @@ static int handleClient(socket_info* sock) {
 		if ( sock->header->isWebsocket == 2 )
 		{
 			#if _WEBSERVER_CONNECTION_DEBUG_ > 2
-				LOG ( CONNECTION_LOG,NOTICE_LEVEL,sock->socket,"isWebsocket 2","" );
+				LOG ( CONNECTION_LOG,NOTICE_LEVEL,sock->socket,"isWebsocket 2" );
 			#endif
 			generateOutputBuffer(sock);
 			addEventSocketWritePersist(sock);
@@ -543,7 +564,7 @@ static int handleClient(socket_info* sock) {
 #endif
 
 #if _WEBSERVER_HANDLER_DEBUG_ > 4
-		LOG ( HANDLER_LOG,NOTICE_LEVEL,sock->socket,"Handle Web Request","" );
+		LOG ( HANDLER_LOG,NOTICE_LEVEL,sock->socket,"Handle Web Request" );
 #endif
 		sock->use_output_compression = 0;
 		/* das hier tritt auf wenn mehrer requests ueber einen Socket im Burst gesendet werden */
@@ -628,7 +649,7 @@ static CLIENT_WRITE_DATA_STATUS handleClientWriteDataSendRamFile(socket_info* so
 		file->file_send_pos = 0;
 		file->file_info = 0;
 		LOG(CONNECTION_LOG, ERROR_LEVEL, sock->socket, "unhandled send status file ram pos : %"FILE_OFF_PRINT_INT" status : %d",
-				file->file_send_pos, ret);
+				FILE_OFF_CAST(file->file_send_pos), ret);
 		return CLIENT_DICONNECTED;
 	}
 	file->file_send_pos = 0;
@@ -724,7 +745,7 @@ static CLIENT_WRITE_DATA_STATUS handleClientWriteDataSendOutputBuffer(socket_inf
 	int ret;
 
 #ifdef _WEBSERVER_CONNECTION_SEND_DEBUG_
-	LOG ( CONNECTION_LOG,ERROR_LEVEL,sock->socket,"handleClientWriteData Send Output Buffer ","" );
+	LOG ( CONNECTION_LOG,ERROR_LEVEL,sock->socket,"handleClientWriteData Send Output Buffer" );
 #endif
 
 
@@ -742,7 +763,7 @@ static CLIENT_WRITE_DATA_STATUS handleClientWriteDataSendOutputBuffer(socket_inf
 				goto client_diconnected_header;
 			default:
 				LOG(CONNECTION_LOG, ERROR_LEVEL, sock->socket, "unhandled send status output_header_buffer pos : %"FILE_OFF_PRINT_INT" status : %d",
-						output->header.buffer_send_pos, ret);
+						FILE_OFF_CAST(output->header.buffer_send_pos), ret);
 				goto client_diconnected_header;
 		}
 	}
@@ -761,16 +782,15 @@ static CLIENT_WRITE_DATA_STATUS handleClientWriteDataSendOutputBuffer(socket_inf
 				goto client_diconnected_main;
 			default:
 				LOG(CONNECTION_LOG, ERROR_LEVEL, sock->socket, "unhandled send status output_main_buffer pos : %"FILE_OFF_PRINT_INT" status : %d",
-						output->body.buffer_send_pos, ret);
+						FILE_OFF_CAST(output->body.buffer_send_pos), ret);
 				goto client_diconnected_main;
 		}
 	}
 
 	if (output->file_infos.file_info != 0) {
 
-		//TODO Die Meldung fixen
 		#ifdef _WEBSERVER_CONNECTION_SEND_DEBUG_
-			LOG ( CONNECTION_LOG,ERROR_LEVEL,sock->socket,"handleClientWriteData Send File  Bytes %ld Pos %ld", sock->file_infos.file_info->DataLenght,sock->file_infos.file_send_pos );
+			LOG ( CONNECTION_LOG,ERROR_LEVEL,sock->socket,"handleClientWriteData Send File  Bytes %ld Pos %ld", (long)output->file_infos.file_info->DataLenght,(long)output->file_infos.file_send_pos );
 		#endif
 
 		if (output->file_infos.file_info->RamCached == 1) {
@@ -901,12 +921,12 @@ int WebserverCloseSocket(socket_info* sock) {
 #ifdef WEBSERVER_USE_WEBSOCKETS
 	if ( sock->isWebsocket == 1 ) {
 #if _WEBSERVER_CONNECTION_DEBUG_ > 1
-		LOG( CONNECTION_LOG, NOTICE_LEVEL, sock->socket, "Closing Websocket Connection", "");
+		LOG( CONNECTION_LOG, NOTICE_LEVEL, sock->socket, "Closing Websocket Connection" );
 #endif
 	}else{
 #endif
 #if _WEBSERVER_CONNECTION_DEBUG_ > 1
-		LOG( CONNECTION_LOG, NOTICE_LEVEL, sock->socket, "Closing Client Connection", "");
+		LOG( CONNECTION_LOG, NOTICE_LEVEL, sock->socket, "Closing Client Connection" );
 #endif
 #ifdef WEBSERVER_USE_WEBSOCKETS
 	}
@@ -932,7 +952,7 @@ CLIENT_WRITE_DATA_STATUS handleClientWriteDataNotCachedReadWrite(socket_info* so
 	unsigned char *buffer;
 
 #ifdef _WEBSERVER_FILESYSTEM_DEBUG_
-		LOG ( CONNECTION_LOG,NOTICE_LEVEL,sock->socket,"Send File from Disk Soll %d Pos %d",sock->file_infos.file_info->DataLenght,sock->file_infos.file_send_pos );
+		LOG ( CONNECTION_LOG,NOTICE_LEVEL,sock->socket,"Send File from Disk Soll %ld Pos %ld",file->file_info->DataLenght,file->file_send_pos );
 #endif
 
 	buffer = (unsigned char *) WebserverMalloc( WRITE_DATA_SIZE );
@@ -950,7 +970,7 @@ CLIENT_WRITE_DATA_STATUS handleClientWriteDataNotCachedReadWrite(socket_info* so
 
 		FILE_OFFSET ret2 = PlatformReadBytes(buffer, to_read);
 		if ( ret2 != to_read ){
-			printf("Error: read mismatch %"FILE_OFF_PRINT_INT" != %d\n",ret2,to_read);
+			printf("Error: read mismatch %"FILE_OFF_PRINT_INT" != %d\n",FILE_OFF_CAST(ret2),to_read);
 		}
 
 		status = WebserverSend(sock, buffer, to_read, 0, &ret);
@@ -958,7 +978,7 @@ CLIENT_WRITE_DATA_STATUS handleClientWriteDataNotCachedReadWrite(socket_info* so
 		switch (status) {
 		case SOCKET_SEND_NO_MORE_DATA:
 #if _WEBSERVER_CONNECTION_DEBUG_ >= 5
-			LOG ( SOCKET_LOG,NOTICE_LEVEL,sock->socket,"SOCKET_SEND_NO_MORE_DATA : %d status : %d ret : %d",sock->file_infos.file_send_pos,status,ret );
+			LOG ( SOCKET_LOG,NOTICE_LEVEL,sock->socket,"SOCKET_SEND_NO_MORE_DATA : %ld status : %d ret : %d",file->file_send_pos,status,ret );
 #endif
 			file->file_send_pos += ret;
 			if ( file->file_info->DataLenght == file->file_send_pos) {
@@ -980,7 +1000,7 @@ CLIENT_WRITE_DATA_STATUS handleClientWriteDataNotCachedReadWrite(socket_info* so
 
 		default:
 			LOG(SOCKET_LOG, ERROR_LEVEL, sock->socket, "unhandled send status file file pos : %"FILE_OFF_PRINT_INT" status : %d",
-					file->file_send_pos, status);
+					FILE_OFF_CAST(file->file_send_pos), status);
 			ret_v = CLIENT_DICONNECTED;
 			goto send_ende;
 		}
@@ -1027,9 +1047,9 @@ void handleer( int a, short b, void *t ) {
 
 #if _WEBSERVER_HANDLER_DEBUG_ > 3
 
-	if ( b == EVENT_TIMEOUT ){ LOG ( HANDLER_LOG,NOTICE_LEVEL,sock->socket,"EV_TIMEOUT","" ); }
-	if ( b == EVENT_READ ) {   LOG ( HANDLER_LOG,NOTICE_LEVEL,sock->socket,"EV_READ","" );    }
-	if ( b == EVENT_WRITE ) {  LOG ( HANDLER_LOG,NOTICE_LEVEL,sock->socket,"EV_WRITE","" );   }
+	if ( b == EVENT_TIMEOUT ){ LOG ( HANDLER_LOG,NOTICE_LEVEL,sock->socket,"EV_TIMEOUT" ); }
+	if ( b == EVENT_READ ) {   LOG ( HANDLER_LOG,NOTICE_LEVEL,sock->socket,"EV_READ" );    }
+	if ( b == EVENT_WRITE ) {  LOG ( HANDLER_LOG,NOTICE_LEVEL,sock->socket,"EV_WRITE" );   }
 
 #endif
 
@@ -1148,7 +1168,7 @@ void handleer( int a, short b, void *t ) {
 			switch (status_ret) {
 			case NO_MORE_DATA:
 #if _WEBSERVER_CONNECTION_DEBUG_ > 4
-				LOG ( CONNECTION_LOG,NOTICE_LEVEL,sock->socket,"request finished","" );
+				LOG ( CONNECTION_LOG,NOTICE_LEVEL,sock->socket,"request finished" );
 #endif
 				delEventSocketWritePersist(sock);
 
@@ -1187,7 +1207,7 @@ void handleer( int a, short b, void *t ) {
 				break;
 			case CLIENT_DICONNECTED:
 #ifdef _WEBSERVER_CONNECTION_DEBUG_
-				LOG ( CONNECTION_LOG,WARNING_LEVEL,sock->socket,"%d","request finished client disconnected" );
+				LOG ( CONNECTION_LOG,WARNING_LEVEL,sock->socket,"%s","request finished client disconnected" );
 #endif
 				delEventSocketWritePersist(sock);
 				WebserverConnectionManagerCloseRequest(sock);

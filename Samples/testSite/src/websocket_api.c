@@ -12,7 +12,7 @@
 #include <stdlib.h>
 #include <time.h>
 
-#if defined (  __linux__ ) || defined ( __APPLE__ )
+#if defined (  __linux__ ) || defined ( __APPLE__ ) || defined ( __FreeBSD__ )
 	#include <unistd.h>
 	#include <pthread.h>
 #endif
@@ -65,7 +65,7 @@ void pthread_mutex_init(pthread_mutex_t* mutex, int init) {
 #endif
 
 
-#if defined (  __linux__ ) || defined ( __APPLE__ ) 
+#if defined (  __linux__ ) || defined ( __APPLE__ ) || defined ( __FreeBSD__ )
 
 static void run_thread(thread_function func , void* arg) {
 

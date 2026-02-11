@@ -18,13 +18,11 @@ SPDX-License-Identifier: MPL-2.0
 #ifndef _WEBSERVER_UTILS_H_
 #define _WEBSERVER_UTILS_H_
 
-#include "red_black_tree.h"
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-rb_red_blk_tree* initStringRBTree(void);
 
 unsigned int readInt( void );
 
@@ -36,6 +34,14 @@ int stringfindAtPos(const char *buffer,const char *pattern);
 
 void Webserver_strncpy( char *dest, unsigned int dest_size,  const char *src, unsigned int count);
 unsigned long Webserver_strlen( char *text);
+
+/**
+ * Duplicate up to max_len characters using WebserverMalloc
+ * @param src Source buffer (must not be NULL)
+ * @param max_len Maximum characters to read/copy (not including terminator)
+ * @return Newly allocated copy or NULL on failure. Always 0-terminated.
+ */
+char* Webserver_strndup(const char* src, uint32_t max_len);
 
 
 

@@ -151,7 +151,19 @@ void 	PlatformGetGUID ( char* buf,SIZE_TYPE length ) {
 	}
 	int ret = 0;
 	while( ret < 16 ){
-		ret += read( fd, uuid, 16 - ret );
+		ssize_t n = read( fd, &uuid[ret], 16 - ret );
+		if ( n < 0 ) {
+			if (errno == EINTR) continue;  /* Signal interrupt, retry */
+			printf("\nERROR: read /dev/urandom failed: %s\n\n", strerror(errno));
+			close(fd);
+			exit(1);
+		}
+		if ( n == 0 ) {
+			printf("\nERROR: /dev/urandom unexpected EOF\n\n");
+			close(fd);
+			exit(1);
+		}
+		ret += n;
 	}
 	close( fd );
 
@@ -220,6 +232,7 @@ int PlatformUnlockMutex(WS_MUTEX* m){
 		return EINVAL;
 	}
 
+	/* coverity[missing_lock] - locked is debug-only counter, caller holds lock */
 	m->locked--;
 	return pthread_mutex_unlock( &m->handle );
 }
@@ -239,6 +252,10 @@ int PlatformDestroyMutex(WS_MUTEX* m){
 
 int PlatformCreateSem(WS_SEMAPHORE_TYPE* sem, int init_value){
 	return sem_init( sem, 0, init_value);
+}
+
+int PlatformDestroySem(WS_SEMAPHORE_TYPE* sem){
+	return sem_destroy( sem );
 }
 
 int PlatformPostSem(WS_SEMAPHORE_TYPE* sem) {

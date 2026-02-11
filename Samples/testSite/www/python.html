@@ -1,33 +1,73 @@
 TEMPLATE_V1
 {echo_off}
+{set:render;"title":"Python"}
+{set:render;"nav_python":"active"}
+{echo_on}
 
-{set:render;"title":"Index"}
-
-{echo_on}{include:header.inc}
+{include:header.inc}
 
 {b:startSession}
 
-<h1>Hallo Python!</h1>
+<h1>Python Integration</h1>
 
-<h2>Python Funktionen</h2>
+<p class="text-muted">This page demonstrates calling Python functions from templates.</p>
 
-Py test1 : {f:test1}<br>
-Py test2 : {f:test2}<br>
-Py test3 : {f:test3}<br>
-Py test4 : {f:test4}<br>
+<h2>Python Functions</h2>
+<p class="text-small text-muted">Functions defined in Python and called via <code>&#123;f:name&#125;</code></p>
 
-<h2>Render Variablen</h2>
+<table>
+    <tr><th>Function</th><th>Output</th></tr>
+    <tr>
+        <td class="mono">&#123;f:test1&#125;</td>
+        <td>{f:test1}</td>
+    </tr>
+    <tr>
+        <td class="mono">&#123;f:test2&#125;</td>
+        <td>{f:test2}</td>
+    </tr>
+    <tr>
+        <td class="mono">&#123;f:test3&#125;</td>
+        <td>{f:test3}</td>
+    </tr>
+    <tr>
+        <td class="mono">&#123;f:test4&#125;</td>
+        <td>{f:test4}</td>
+    </tr>
+</table>
 
-Render a : {get:render;"a"}<br>
-Render b : {get:render;"b"}<br>
-Render c : {get:render;"c"}<br>
+<h2>Render Variables</h2>
+<p class="text-small text-muted">Variables set by Python and read via <code>&#123;get:render;"name"&#125;</code></p>
 
+<table>
+    <tr><th>Variable</th><th>Value</th></tr>
+    <tr>
+        <td class="mono">a</td>
+        <td>{get:render;"a"}</td>
+    </tr>
+    <tr>
+        <td class="mono">b</td>
+        <td>{get:render;"b"}</td>
+    </tr>
+    <tr>
+        <td class="mono">c</td>
+        <td>{get:render;"c"}</td>
+    </tr>
+</table>
 
-<h2>Session Variablen</h2>
+<h2>Session Variables</h2>
+<p class="text-small text-muted">Session variables accessible across requests</p>
 
-Session b : {get:session;"b"}<br>
+<table>
+    <tr><th>Variable</th><th>Value</th></tr>
+    <tr>
+        <td class="mono">b</td>
+        <td>{get:session;"b"}</td>
+    </tr>
+</table>
 
+<h2>Python Version</h2>
+<div class="info-box">
+    {f:py_version}
+</div>
 
-<br>
-<br>
-{f:py_version}<br>
+{include:footer.inc}

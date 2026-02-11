@@ -222,14 +222,25 @@ PyObject *py_ws_var_to_py( ws_variable *var ){
 	if ( var == 0 ) return NULL;
 
 	switch ( var->type ){
+		case VAR_TYPE_EMPTY:
+			Py_RETURN_NONE;
 		case VAR_TYPE_STRING:
 			return PyString_FromString( var->val.value_string );
 		case VAR_TYPE_INT:
-			return PyInt_FromLong( var->val.value_int);
-
-
+			return PyInt_FromLong( var->val.value_int );
+		case VAR_TYPE_ULONG:
+			return PyLong_FromUnsignedLongLong( var->val.value_uint64_t );
+		case VAR_TYPE_LONG:
+			return PyLong_FromLongLong( var->val.value_int64_t );
+		case VAR_TYPE_REF:
+			return py_ws_var_to_py( var->val.value_ref );
+		case VAR_TYPE_ARRAY:
+			printf("py_ws_var_to_py: VAR_TYPE_ARRAY not convertible\n");
+			Py_RETURN_NONE;
+		case VAR_TYPE_CUSTOM_DATA:
+			printf("py_ws_var_to_py: VAR_TYPE_CUSTOM_DATA not convertible\n");
+			Py_RETURN_NONE;
 	}
-
 
 	return NULL;
 }

@@ -1,0 +1,32 @@
+name: macOS Build Tests
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+permissions:
+  contents: read
+
+jobs:
+  macos:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-14, macos-15]
+
+    name: ${{ matrix.os }}
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: |
+        brew install libevent openssl@3 python3
+
+    - name: Build
+      run: |
+        cd Samples/OSX/MakeProject
+        make clean || true
+        make

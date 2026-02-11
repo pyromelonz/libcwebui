@@ -114,11 +114,11 @@ typedef struct {
 
 
 
-void addBlock(memory_block* block) {
-	ws_list_append(&block_list, block);
+static void addBlock(memory_block* block) {
+	ws_list_append(&block_list, block, 0);
 }
 
-void delBlock(void* p_block) {
+static void delBlock(void* p_block) {
 	memory_block* block = (memory_block*) p_block;
 	ws_list_delete(&block_list, block);
 }

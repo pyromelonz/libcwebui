@@ -36,9 +36,10 @@ SPDX-License-Identifier: MPL-2.0
 #define SIZE_TYPE size_t
 #define TIME_TYPE time_t
 
-#define FILE_OFFSET __off_t
-#define FILE_OFF_PRINT_HEX  "lX"
-#define FILE_OFF_PRINT_INT  PRId64
+#define FILE_OFFSET off_t
+#define FILE_OFF_CAST(x) ((intmax_t)(x))
+#define FILE_OFF_PRINT_HEX  PRIxMAX
+#define FILE_OFF_PRINT_INT  PRIdMAX
 
 #define WS_MUTEX_TYPE		struct k_mutex
 #define WS_SEMAPHORE_TYPE	struct k_sem 

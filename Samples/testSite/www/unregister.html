@@ -1,16 +1,39 @@
 TEMPLATE_V1
+{echo_off}
 {set:render;"title":"Unregister"}
+{set:render;"nav_unregister":"active"}
+{echo_on}
+
 {include:header.inc}
 
-<h1>Hallo Welt!</h1>
+<h1>Session Unregistration</h1>
+
+<p class="text-muted">This page demonstrates unregistering a user from the session store.</p>
 
 {b:startSession}
 
-{b:dumpSessionStore}<br>
+<h2>Before Unregistration</h2>
+{b:dumpSessionStore}
 
-<h2>aufruf von &#123;f:unregister}</h2>{f:unregister}<br>
+<h2>Unregister Function</h2>
+<p class="text-small text-muted">Calling <code>&#123;f:unregister&#125;</code></p>
 
-<h2>{f:checkregister}</h2><br>
-{b:dumpSessionStore}<br>
+<div class="info-box">
+    <div class="info-row">
+        <span class="info-label">Result</span>
+        <span class="info-value">{f:unregister}</span>
+    </div>
+</div>
+
+<h2>Status Check</h2>
+<div class="info-box">
+    <div class="info-row">
+        <span class="info-label">Status</span>
+        <span class="info-value">{f:checkregister}</span>
+    </div>
+</div>
+
+<h2>After Unregistration</h2>
+{b:dumpSessionStore}
 
 {include:footer.inc}

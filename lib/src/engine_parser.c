@@ -44,29 +44,29 @@ ws_variable* NEED_RESUL_CHECK parseVariable(http_request *s,char* buffer) {
 #endif
 
 	if(0 == strncmp(buffer,"global;",7)){
-#ifdef _WEBSERVER_TEMPLATE_DEBUG_ 
-	LOG (TEMPLATE_LOG,NOTICE_LEVEL,0,"parseVariable Namespace global","");
+#ifdef _WEBSERVER_TEMPLATE_DEBUG_
+	LOG (TEMPLATE_LOG,NOTICE_LEVEL,0,"parseVariable Namespace global");
 #endif
 		name_space = 1;
 		offset=7;
 	}
 	if(0 == strncmp(buffer,"render;",7)){
-#ifdef _WEBSERVER_TEMPLATE_DEBUG_ 
-	LOG (TEMPLATE_LOG,NOTICE_LEVEL,0,"parseVariable Namespace render","");
+#ifdef _WEBSERVER_TEMPLATE_DEBUG_
+	LOG (TEMPLATE_LOG,NOTICE_LEVEL,0,"parseVariable Namespace render");
 #endif
 		name_space = 2;
 		offset=7;
 	}
 	if(0 == strncmp(buffer,"session;",8)){
-#ifdef _WEBSERVER_TEMPLATE_DEBUG_ 
-	LOG (TEMPLATE_LOG,NOTICE_LEVEL,0,"parseVariable Namespace session","");
+#ifdef _WEBSERVER_TEMPLATE_DEBUG_
+	LOG (TEMPLATE_LOG,NOTICE_LEVEL,0,"parseVariable Namespace session");
 #endif
 		name_space = 3;
 		offset=8;
 	}
 	if(0 == strncmp(buffer,"parameter;",10)){
-#ifdef _WEBSERVER_TEMPLATE_DEBUG_ 
-	LOG (TEMPLATE_LOG,NOTICE_LEVEL,0,"parseVariable Namespace parameter","");
+#ifdef _WEBSERVER_TEMPLATE_DEBUG_
+	LOG (TEMPLATE_LOG,NOTICE_LEVEL,0,"parseVariable Namespace parameter");
 #endif
 		name_space = 4;
 		offset=10;

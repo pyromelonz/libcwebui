@@ -279,6 +279,25 @@ void WebserverResetHttpRequestHeader(HttpRequestHeader *header) {
 		header->Accept_Encoding = 0;
 	}
 
+	if (header->UserAgent != 0) {
+		WebserverFree(header->UserAgent);
+		header->UserAgent = 0;
+	}
+
+	if (header->Referer != 0) {
+		WebserverFree(header->Referer);
+		header->Referer = 0;
+	}
+
+	if (header->Accept != 0) {
+		WebserverFree(header->Accept);
+		header->Accept = 0;
+	}
+
+	if (header->Authorization != 0) {
+		WebserverFree(header->Authorization);
+		header->Authorization = 0;
+	}
 
 #ifdef WEBSERVER_USE_WEBSOCKETS
 	if (header->SecWebSocketKey != 0) {

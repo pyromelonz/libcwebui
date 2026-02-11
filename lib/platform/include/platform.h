@@ -60,6 +60,7 @@ int PlatformUnlockMutex(WS_MUTEX* m);
 int PlatformDestroyMutex(WS_MUTEX* m);
 
 int PlatformCreateSem(WS_SEMAPHORE_TYPE* sem, int init_value);
+int PlatformDestroySem(WS_SEMAPHORE_TYPE* sem);
 int PlatformWaitSem(WS_SEMAPHORE_TYPE* sem);
 int PlatformPostSem(WS_SEMAPHORE_TYPE* sem);
 

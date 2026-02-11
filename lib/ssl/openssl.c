@@ -498,16 +498,16 @@ int WebserverSSLAccept(socket_info* s) {
 				return SSL_PROTOCOL_ERROR;
 			case SSL_ERROR_SSL:{
 					int r3 = ERR_get_error();
-					if ( r3 == 336151574 ){
-						// error:14094416:SSL routines:ssl3_read_bytes:sslv3 alert certificate unknown
-						// ( 336151574 / 0x14094416 )
-						// the client reports that the certificate is unknown, do not print that error
-						return SSL_PROTOCOL_ERROR;
+
+					// Suppress expected errors when clients reject self-signed certificates
+					switch (r3) {
+						case 336151574:  // 0x14094416 - OpenSSL 1.x: sslv3 alert certificate unknown
+						case 336151576:  // 0x14094418 - OpenSSL 1.x: tlsv1 alert unknown ca
+						case 167773206:  // 0x0A000416 - OpenSSL 3.x: sslv3 alert certificate unknown
+						case 167773208:  // 0x0A000418 - OpenSSL 3.x: tlsv1 alert unknown ca
+							return SSL_PROTOCOL_ERROR;
 					}
-					if ( r3 == 336151576 ){
-						// error:14094418:SSL routines:ssl3_read_bytes:tlsv1 alert unknown ca
-						return SSL_PROTOCOL_ERROR;
-					}
+
 					LOG( CONNECTION_LOG, ERROR_LEVEL, s->socket, "%s","SSL_ERROR_SSL");
 
 					char buffer[256];
@@ -525,9 +525,6 @@ int WebserverSSLAccept(socket_info* s) {
 			}
 		}
 	}
-
-	s->use_ssl = 0;
-	return NO_SSL_CONNECTION_ERROR;
 }
 
 int WebserverSSLRecvNonBlocking(socket_info* s, unsigned char *buf, unsigned int len, UNUSED_PARA int flags) {
@@ -618,15 +615,25 @@ int WebserverSSLRecvNonBlocking(socket_info* s, unsigned char *buf, unsigned int
 		case SSL_ERROR_WANT_X509_LOOKUP:
 		case SSL_ERROR_WANT_CONNECT:
 		case SSL_ERROR_WANT_ACCEPT:
+			return SSL_PROTOCOL_ERROR;
+
 		case SSL_ERROR_SSL:
-			// A failure in the SSL library occurred, usually a protocol error. The OpenSSL error queue contains more information on the error.
+			// A failure in the SSL library occurred, usually a protocol error.
+			err_code = ERR_get_error();
+			// Suppress harmless errors (client disconnect without close_notify, etc.)
+#ifdef SSL_R_UNEXPECTED_EOF_WHILE_READING
+			if (ERR_GET_REASON(err_code) == SSL_R_UNEXPECTED_EOF_WHILE_READING) {
+				return CLIENT_DISCONNECTED;
+			}
+#endif
+			ERR_error_string(err_code, buffer);
+			LOG(CONNECTION_LOG, ERROR_LEVEL, s->socket, "SSL Error: %s", buffer);
+			return SSL_PROTOCOL_ERROR;
+
 		default:
 			err_code = ERR_get_error();
 			ERR_error_string(err_code, buffer);
-			//ERR_error_string(r2,buffer);
-//#ifdef _WEBSERVER_CONNECTION_DEBUG_
-			LOG ( CONNECTION_LOG,ERROR_LEVEL,s->socket,"Unhandled SSL Error ( %d ) %s",r2,buffer );
-//#endif
+			LOG(CONNECTION_LOG, ERROR_LEVEL, s->socket, "Unhandled SSL Error ( %d ) %s", r2, buffer);
 			return SSL_PROTOCOL_ERROR;
 		}
 		if ((unsigned int)l == len) {

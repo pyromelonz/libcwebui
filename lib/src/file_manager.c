@@ -43,14 +43,14 @@ static int checkCacheHeader(http_request* s, WebserverFileInfo *info) {
 			*/
 			if ((0 == strcmp(ET1, ET2))) {
 #ifdef _WEBSERVER_CACHE_DEBUG_
-				LOG(CACHE_LOG,NOTICE_LEVEL,s->socket->socket, "Cache Hit ETag %s",info->Name );
+				LOG(CACHE_LOG,NOTICE_LEVEL,s->socket->socket, "Cache Hit ETag %s",info->FilePath );
 				LOG(CACHE_LOG,NOTICE_LEVEL,s->socket->socket, "Request %s",s->header->etag );
 				LOG(CACHE_LOG,NOTICE_LEVEL,s->socket->socket, "File    %s",info->etag );
 #endif
 				return 1;
 			} else {
 #ifdef _WEBSERVER_CACHE_DEBUG_
-				LOG(CACHE_LOG,NOTICE_LEVEL,s->socket->socket, "Cache Miss ETag %s",info->Name );
+				LOG(CACHE_LOG,NOTICE_LEVEL,s->socket->socket, "Cache Miss ETag %s",info->FilePath );
 				LOG(CACHE_LOG,NOTICE_LEVEL,s->socket->socket, "Request %s",s->header->etag );
 				LOG(CACHE_LOG,NOTICE_LEVEL,s->socket->socket,"File    %s",info->etag );
 #endif
@@ -62,21 +62,21 @@ static int checkCacheHeader(http_request* s, WebserverFileInfo *info) {
 			*/
 			if ((0 == strcmp(LM1, LM2)) && (strlen(LM1) == strlen(LM2))) {
 #ifdef _WEBSERVER_CACHE_DEBUG_
-				LOG(CACHE_LOG,NOTICE_LEVEL,s->socket->socket,"Cache Hit Last Modified %s",info->Name );
+				LOG(CACHE_LOG,NOTICE_LEVEL,s->socket->socket,"Cache Hit Last Modified %s",info->FilePath );
 				LOG(CACHE_LOG,NOTICE_LEVEL,s->socket->socket, "Request %s",s->header->If_Modified_Since );
 				LOG(CACHE_LOG,NOTICE_LEVEL,s->socket->socket, "File    %s",info->lastmodified );
 #endif
 				return 1;
 			} else {
 #ifdef _WEBSERVER_CACHE_DEBUG_
-				LOG(CACHE_LOG,NOTICE_LEVEL,s->socket->socket,"Cache Hit Last Modified %s",info->Name );
+				LOG(CACHE_LOG,NOTICE_LEVEL,s->socket->socket,"Cache Hit Last Modified %s",info->FilePath );
 				LOG(CACHE_LOG,NOTICE_LEVEL,s->socket->socket, "Request %s",s->header->If_Modified_Since );
 				LOG(CACHE_LOG,NOTICE_LEVEL,s->socket->socket, "File    %s",info->lastmodified );
 #endif
 			}
 		} else {
 #ifdef _WEBSERVER_CACHE_DEBUG_
-			LOG(CACHE_LOG,NOTICE_LEVEL,s->socket->socket, "Cache Miss %s no Cache Headers",info->Name );
+			LOG(CACHE_LOG,NOTICE_LEVEL,s->socket->socket, "Cache Miss %s no Cache Headers",info->FilePath );
 #endif
 		}
 	}

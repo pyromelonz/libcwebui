@@ -42,6 +42,8 @@ typedef enum {
 	FILE_TYPE_PDF, FILE_TYPE_JSON, FILE_TYPE_WOFF, FILE_TYPE_EOT, FILE_TYPE_TTF,
 	FILE_TYPE_C_SRC,
 
+	FILE_TYPE_CUSTOM,  /* Custom headers via ws_set_response_header() */
+
 	FILE_TYPE_ALL
 } FILE_TYPES;
 
@@ -97,10 +99,12 @@ typedef struct{
 	uint16_t length;
 } parameter_info;
 
+/* Forward declaration */
+typedef struct user_func_s user_func_s;
 
 typedef struct {
 	ENGINE_FUNCTIONS function;
-	rb_red_blk_node    *platform_function;
+	user_func_s        *platform_function;
 	parameter_info parameter[MAX_FUNC_PARAS];
 	unsigned char  parameter_count;
 } FUNCTION_PARAS;
@@ -256,8 +260,25 @@ typedef struct{
 
 } output_struct;
 
+/* WebSocket Streaming - forward declaration and internal types */
+struct websocket_stream_context;  /* Full definition in webserver_api_functions.h */
+
+typedef struct websocket_stream_handler_entry {
+    char* url;
+    void (*on_start)(struct websocket_stream_context* ctx);
+    void (*on_chunk)(struct websocket_stream_context* ctx,
+                     const unsigned char* data,
+                     uint32_t length);
+    void (*on_end)(struct websocket_stream_context* ctx,
+                   int success);
+} websocket_stream_handler_entry;
+
 typedef struct {
 	int socket;
+	
+	int reverse_proxy_checked;
+	int reverse_proxy_error;
+	
 
 #ifdef WEBSERVER_USE_IPV6
 	char client_ip_str[INET6_ADDRSTRLEN];
@@ -292,11 +313,8 @@ typedef struct {
 
 #if defined( USE_LIBEVENT )
 	struct event *my_ev;
-#elif defined ( USE_EPOLL )
-    int registered;
-#else
-	EVENT_TYPES event_types;
-	char event_persist;
+#elif defined( USE_EPOLL )
+	int registered;
 #endif
 	char closeSocket;
 
@@ -328,6 +346,15 @@ typedef struct {
 	unsigned int websocket_buffer_offset;
 	char *websocket_guid;
 	char *websocket_store_guid;
+
+	/* Streaming state */
+	char websocket_streaming_active;           /* Are we in the middle of a stream? */
+	char websocket_stream_fragmented;          /* 1 if streaming fragmented frames (fin=0 + CONTINUE) */
+	uint64_t websocket_stream_remaining;       /* Bytes still to receive (0 for fragmented = unknown total) */
+	unsigned char websocket_stream_mask[4];    /* Mask for unmasking */
+	uint64_t websocket_stream_mask_offset;     /* Position in mask cycle */
+	struct websocket_stream_context* websocket_stream_ctx;
+	websocket_stream_handler_entry* websocket_stream_handler;
 #endif
 
 	WebserverFileInfo *send_file_info;
@@ -349,6 +376,11 @@ typedef struct{
 	char* name;
 	uint64_t length;
 }upload_file_info;
+
+typedef struct{
+	char* name;
+	char* value;
+}custom_response_header;
 
 typedef struct {
 	FUNCTION_PARAS func;
@@ -377,6 +409,7 @@ typedef struct {
 
 
 	list_t upload_files;
+	list_t custom_response_headers;
 
 }http_request;
 
@@ -428,7 +461,7 @@ typedef struct {
 
 typedef void (*user_function)(http_request *s, FUNCTION_PARAS* func);
 
-typedef struct {
+struct user_func_s {
 
 	char* name;
 	plugin_s* plugin;
@@ -442,7 +475,7 @@ typedef struct {
 
 	user_function uf;
 
-} user_func_s;
+};
 
 typedef enum {
 	WEBSOCKET_SIGNAL_CONNECT = 1, WEBSOCKET_SIGNAL_MSG = 2, WEBSOCKET_SIGNAL_DISCONNECT = 3

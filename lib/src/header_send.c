@@ -27,6 +27,18 @@ SPDX-License-Identifier: MPL-2.0
 
 // https://www.html5rocks.com/static/images/cors_server_flowchart.png
 
+/* Sanitize header values to prevent HTTP Response Splitting (CR/LF injection) */
+static void sanitize_header_value(char* dest, const char* src, unsigned int dest_size) {
+	unsigned int i, j = 0;
+	if (dest_size == 0 || src == 0) return;
+	for (i = 0; src[i] != '\0' && j < dest_size - 1; i++) {
+		if (src[i] != '\r' && src[i] != '\n') {
+			dest[j++] = src[i];
+		}
+	}
+	dest[j] = '\0';
+}
+
 static cors_handler cors_handle_func = 0;
 
 void setCORS_Handler( cors_handler handler ){
@@ -98,22 +110,30 @@ int sendHeaderWebsocket(socket_info* sock) {
 
 
 static void addConnectionStatusLines(socket_info* socket) {
+	char sanitized[512];
 
 	if (socket->header->Connection != 0) {
 		if (strcmp(socket->header->Connection, "close") == 0) {
 			printHeaderChunk(socket, "Connection: close\r\n");
 			return;
 		}
-		printHeaderChunk(socket, "Connection: %s\r\n",socket->header->Connection);
+		sanitize_header_value(sanitized, socket->header->Connection, sizeof(sanitized));
+		printHeaderChunk(socket, "Connection: %s\r\n", sanitized);
 	} else {
-		printHeaderChunk(socket, "Connection: close\r\n");
+		/* HTTP/1.1 default is keep-alive, HTTP/1.0 default is close */
+		if (socket->header->isHttp1_1 == 1) {
+			printHeaderChunk(socket, "Connection: keep-alive\r\n");
+		} else {
+			printHeaderChunk(socket, "Connection: close\r\n");
+		}
 	}
 
 
 	// Access-Control-Expose-Headers
 
 	if ( ( socket->header->Origin != 0 ) && ( COND_TRUE == checkCORS( CORS_ALLOW_ORIGIN, socket ) ) ){
-		printHeaderChunk(socket, "Access-Control-Allow-Origin: %s\r\n",socket->header->Origin);
+		sanitize_header_value(sanitized, socket->header->Origin, sizeof(sanitized));
+		printHeaderChunk(socket, "Access-Control-Allow-Origin: %s\r\n", sanitized);
 	}
 
 	if ( COND_TRUE == checkCORS( CORS_ALLOW_CREDENTIALS, socket ) ){
@@ -123,6 +143,7 @@ static void addConnectionStatusLines(socket_info* socket) {
 }
 
 int sendPreflightAllowed(socket_info *sock) {
+	char sanitized[512];
 
 	if ( sock->header->isHttp1_1 ){
 		printHeaderChunk( sock, "HTTP/1.1 204 No Content\r\n");
@@ -133,17 +154,20 @@ int sendPreflightAllowed(socket_info *sock) {
 
 
 	if ( ( sock->header->Access_Control_Request_Method != 0 ) && ( COND_TRUE == checkCORS( CORS_ALLOW_METHODS, sock ) ) ){
-		printHeaderChunk( sock, "Access-Control-Allow-Methods: %s\r\n",sock->header->Access_Control_Request_Method);
+		sanitize_header_value(sanitized, sock->header->Access_Control_Request_Method, sizeof(sanitized));
+		printHeaderChunk( sock, "Access-Control-Allow-Methods: %s\r\n", sanitized);
 	}
 
 	if ( ( sock->header->Access_Control_Request_Headers != 0 ) && ( COND_TRUE == checkCORS( CORS_ALLOW_HEADERS, sock ) ) ){
-		printHeaderChunk( sock, "Access-Control-Allow-Headers: %s\r\n",sock->header->Access_Control_Request_Headers);
+		sanitize_header_value(sanitized, sock->header->Access_Control_Request_Headers, sizeof(sanitized));
+		printHeaderChunk( sock, "Access-Control-Allow-Headers: %s\r\n", sanitized);
 	}
 
 	// Access-Control-Max-Age
 
 	if ( ( sock->header->Origin != 0 ) && ( COND_TRUE == checkCORS( CORS_ALLOW_ORIGIN, sock ) ) ){
-		printHeaderChunk( sock, "Access-Control-Allow-Origin: %s\r\n",sock->header->Origin);
+		sanitize_header_value(sanitized, sock->header->Origin, sizeof(sanitized));
+		printHeaderChunk( sock, "Access-Control-Allow-Origin: %s\r\n", sanitized);
 	}
 
 	if ( COND_TRUE == checkCORS( CORS_ALLOW_CREDENTIALS, sock ) ){
@@ -309,7 +333,9 @@ static void addContentTypeLines(http_request *s, WebserverFileInfo *info) {
 		printHeaderChunk(s->socket, "%s", "Content-Type: text/x-c\r\n");
 		break;
 
-
+	case FILE_TYPE_CUSTOM:
+		/* Content-Type set via ws_set_response_header() */
+		break;
 
 	default:
 		LOG(FILESYSTEM_LOG, ERROR_LEVEL, s->socket->socket, "Webserver Error : Unbekannter Filetyp %d", info->FileType);
@@ -320,27 +346,35 @@ static void addContentTypeLines(http_request *s, WebserverFileInfo *info) {
 static void addCSPHeaderLines(http_request* s){
 
 	char buff[1000];
+	char host_sanitized[256];
 	int offset = 0;
 
 	if ( getConfigInt( "use_csp") == 0 ){
 		return;
 	}
 
+	/* Sanitize Host header to prevent CSP injection */
+	if ( s->header->Host != 0 ){
+		sanitize_header_value(host_sanitized, s->header->Host, sizeof(host_sanitized));
+	} else {
+		host_sanitized[0] = '\0';
+	}
+
 	/* ; style-src 'self' ; img-src 'self' ; script-src 'self' */
 
 #ifdef WEBSERVER_USE_SSL
 
-	offset += snprintf(&buff[offset],1000-offset,"default-src http://%s https://%s; ",s->header->Host ,s->header->Host);
-	offset += snprintf(&buff[offset],1000-offset,"script-src 'self' 'unsafe-eval' 'unsafe-inline' http://%s https://%s; ",s->header->Host ,s->header->Host);
-	offset += snprintf(&buff[offset],1000-offset,"style-src 'unsafe-inline' http://%s https://%s; ",s->header->Host ,s->header->Host);
-	          snprintf(&buff[offset],1000-offset,"connect-src ws://%s http://%s wss://%s https://%s ; ",s->header->Host ,s->header->Host,s->header->Host ,s->header->Host );
+	offset += snprintf(&buff[offset],1000-offset,"default-src http://%s https://%s; ", host_sanitized, host_sanitized);
+	offset += snprintf(&buff[offset],1000-offset,"script-src 'self' 'unsafe-eval' 'unsafe-inline' http://%s https://%s; ", host_sanitized, host_sanitized);
+	offset += snprintf(&buff[offset],1000-offset,"style-src 'unsafe-inline' http://%s https://%s; ", host_sanitized, host_sanitized);
+	          snprintf(&buff[offset],1000-offset,"connect-src ws://%s http://%s wss://%s https://%s ; ", host_sanitized, host_sanitized, host_sanitized, host_sanitized);
 
 #else
 
-	offset += snprintf(&buff[offset],1000-offset,"default-src http://%s; ",s->header->Host );
-	offset += snprintf(&buff[offset],1000-offset,"script-src 'self' 'unsafe-eval' 'unsafe-inline' http://%s; ",s->header->Host );
-	offset += snprintf(&buff[offset],1000-offset,"style-src 'unsafe-inline' http://%s; ",s->header->Host );
-	          snprintf(&buff[offset],1000-offset,"connect-src ws://%s http://%s; ",s->header->Host ,s->header->Host );
+	offset += snprintf(&buff[offset],1000-offset,"default-src http://%s; ", host_sanitized);
+	offset += snprintf(&buff[offset],1000-offset,"script-src 'self' 'unsafe-eval' 'unsafe-inline' http://%s; ", host_sanitized);
+	offset += snprintf(&buff[offset],1000-offset,"style-src 'unsafe-inline' http://%s; ", host_sanitized);
+	          snprintf(&buff[offset],1000-offset,"connect-src ws://%s http://%s; ", host_sanitized, host_sanitized);
 
 #endif
 
@@ -365,34 +399,26 @@ static void addCSPHeaderLines(http_request* s){
  *********************************************************************************/
 
 static void addSessionCookies(http_request* s,WebserverFileInfo *info){
+	(void)info;
 #ifdef WEBSERVER_USE_SESSIONS
+
+	/* SameSite: Lax (default) or Strict (if cookie_samesite_strict=1) */
+	const char* samesite = (getConfigInt("cookie_samesite_strict") == 1) ? "Strict" : "Lax";
 
 	#ifdef WEBSERVER_USE_SSL
 
-	if ((s->create_cookie == 1) && (info->FileType == FILE_TYPE_HTML)) { /* Nur bei HTML Seiten Session cookies senden */
-		/*
-		printHeaderChunk(s->socket, "Set-Cookie: session-id=%s; Version=\"1\"; Path=\"/\"; Discard; HttpOnly; domain=%s\r\n", s->guid,s->header->Host);
-		printHeaderChunk(s->socket, "Set-Cookie: session-id=%s; Discard; domain=%s\r\n", s->guid,s->header->Host);
-		printHeaderChunk(s->socket, "Set-Cookie: session-id=%s; Path=\"/\"; Discard\r\n", s->guid);	// Working but IE
-		*/
-
-		printHeaderChunk(s->socket, "Set-Cookie: session-id=%s; HttpOnly; Version=1; Path=/; Discard\r\n", s->guid); /* Working IE 11 , Opera 20 , Firefox, Chrome */
+	if (s->create_cookie == 1) {
+		printHeaderChunk(s->socket, "Set-Cookie: session-id=%s; HttpOnly; Version=1; Path=/; Discard; SameSite=%s\r\n", s->guid, samesite);
 	}
 
-	if ((s->create_cookie_ssl == 1) && (s->socket->use_ssl == 1 && (info->FileType == FILE_TYPE_HTML))) {
-		/*
-		printHeaderChunk(s->socket, "Set-Cookie: session-id-ssl=%s; Version=\"1\"; Path=\"/\"; Discard; Secure; HttpOnly; domain=%s\r\n",s->guid_ssl, s->header->Host);
-		printHeaderChunk(s->socket, "Set-Cookie: session-id-ssl=%s; Path=\"/\"; Discard\r\n",s->guid_ssl, s->header->Host);
-		*/
-		printHeaderChunk(s->socket, "Set-Cookie: session-id-ssl=%s; HttpOnly; Version=1; Path=/; Discard; Secure\r\n",s->guid_ssl);
-
+	if ((s->create_cookie_ssl == 1) && (s->socket->use_ssl == 1)) {
+		printHeaderChunk(s->socket, "Set-Cookie: session-id-ssl=%s; HttpOnly; Version=1; Path=/; Discard; Secure; SameSite=%s\r\n", s->guid_ssl, samesite);
 	}
 
 	#else
 
-	if ((s->create_cookie == 1) && (info->FileType == FILE_TYPE_HTML)) { /* Nur bei HTML Seiten Session cookies senden */
-		//printHeaderChunk(s->socket, "Set-Cookie: session-id=%s; Version=1; Path=/; Discard; HttpOnly; domain=http://%s\r\n", s->guid,s->header->Host);
-		printHeaderChunk(s->socket, "Set-Cookie: session-id=%s; Version=1; Path=/; Discard; HttpOnly\r\n", s->guid);
+	if (s->create_cookie == 1) {
+		printHeaderChunk(s->socket, "Set-Cookie: session-id=%s; Version=1; Path=/; Discard; HttpOnly; SameSite=%s\r\n", s->guid, samesite);
 	}
 
 	#endif
@@ -407,6 +433,7 @@ static void addSessionCookies(http_request* s,WebserverFileInfo *info){
  * 	p_lenght ist wichtig für die Template Engine
  */
 int sendHeader(http_request* s, WebserverFileInfo *info, int p_lenght) {
+	custom_response_header* h_info;
 
 	if( s->header->isHttp1_1 ){
 		printHeaderChunk(s->socket, "HTTP/1.1 200 OK\r\n");
@@ -418,7 +445,7 @@ int sendHeader(http_request* s, WebserverFileInfo *info, int p_lenght) {
 	addSessionCookies( s , info );
 
 	printHeaderChunk(s->socket, "Accept-Ranges: bytes\r\n");
-	
+
 	if ( s->socket->use_output_compression == 0 ){
 		printHeaderChunk(s->socket, "%s %d\r\n", "Content-Length:", p_lenght);
 	}
@@ -428,6 +455,13 @@ int sendHeader(http_request* s, WebserverFileInfo *info, int p_lenght) {
 	addContentTypeLines(s, info);
 	addCacheControlLines(s, info);
 	addConnectionStatusLines(s->socket);
+
+	/* Custom response headers */
+	ws_list_iterator_start(&s->custom_response_headers);
+	while( ( h_info = (custom_response_header*)ws_list_iterator_next(&s->custom_response_headers) ) ){
+		printHeaderChunk(s->socket, "%s: %s\r\n", h_info->name, h_info->value);
+	}
+	ws_list_iterator_stop(&s->custom_response_headers);
 
 	if ( info->ForceDownload == 1){
 		printHeaderChunk(s->socket, "Content-Description: File Transfer\r\n");

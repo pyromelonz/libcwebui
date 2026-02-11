@@ -208,7 +208,7 @@ static const unsigned char* read_file( const char *alias, const unsigned char* d
 	file->Data = ret;
 
 #ifdef _WEBSERVER_FILESYSTEM_CACHE_DEBUG_
-	LOG (FILESYSTEM_LOG,NOTICE_LEVEL,0, "Add File Info Node","" );
+	LOG (FILESYSTEM_LOG,NOTICE_LEVEL,0, "Add File Info Node" );
 #endif
 
 	addFileToCache(file);

@@ -1,112 +1,73 @@
 TEMPLATE_V1
 {echo_off}
-
 {b:startSession}
-
-{set_rv:title:Index}
-
 {f:if_test_function1}
+{set:render;"title":"Conditions"}
+{set:render;"nav_if":"active"}
+{echo_on}
 
-{set:render;"title":"IF Test"}
+{include:header.inc}
 
-{echo_on}{include:header.inc}
+<h1>Conditional Logic</h1>
 
+<p class="text-muted">This page demonstrates the template's conditional system using
+<code>&#123;if&#125;...&#123;else&#125;...&#123;endif&#125;</code> blocks.</p>
 
+<h2>Simple Comparisons</h2>
+<p class="text-small text-muted">Using <code>&#123;if:eq:value1:value2&#125;</code> for equality checks</p>
 
-<h1>IF Test</h1>
+<table>
+    <tr><th>Condition</th><th>Result</th></tr>
+    <tr>
+        <td class="mono">&#123;if:eq:1:"1"&#125;</td>
+        <td>{if:eq:1:"1"}<span class="status-ok">true</span>{else}<span class="status-error">false</span>{endif}</td>
+    </tr>
+    <tr>
+        <td class="mono">&#123;if:eq:2:2&#125;</td>
+        <td>{if:eq:2:2}<span class="status-ok">true</span>{else}<span class="status-error">false</span>{endif}</td>
+    </tr>
+    <tr>
+        <td class="mono">&#123;if:eq:"hmm":"jo"&#125;</td>
+        <td>{if:eq:"hmm":"jo"}<span class="status-ok">true</span>{else}<span class="status-error">false</span>{endif}</td>
+    </tr>
+    <tr>
+        <td class="mono">&#123;if:eq:2:"a"&#125;</td>
+        <td>{if:eq:2:"a"}<span class="status-ok">true</span>{else}<span class="status-error">false</span>{endif}</td>
+    </tr>
+</table>
 
-{if:eq:1:"1"}
-	Jo Para = 1
-{endif}
+<h2>Custom Conditions</h2>
+<p class="text-small text-muted">Toggle conditions by clicking the links below</p>
 
-{if:eq:2:2}
-	Jo Para = 2
-{endif}
+<div class="info-box">
+    <a href="if_test.html?testcond1toogle" class="btn btn-secondary">Toggle Condition 1</a>
+    <a href="if_test.html?testcond2toogle" class="btn btn-secondary">Toggle Condition 2</a>
+    <a href="if_test.html?testcond3toogle" class="btn btn-secondary">Toggle Condition 3</a>
+    <a href="if_test.html?testcond4toogle" class="btn btn-secondary">Toggle Condition 4</a>
+</div>
 
-{if:eq:"hmm":"jo"}
-	Jo Para = 3
-{endif}
+<h3>Nested Condition Results</h3>
+<table>
+    <tr><th>Test</th><th>Result</th></tr>
+    <tr>
+        <td class="mono">cond1 ? (cond3 ? +1 : =1) : (cond4 ? -1 : !1)</td>
+        <td><strong>{if:testcondition1}{if:testcondition3}{if:is_true}+1{else}exception{endif}{else}=1{endif}{else}{if:testcondition4}-1{else}!1{endif}{endif}</strong></td>
+    </tr>
+    <tr>
+        <td class="mono">cond1 ? (cond4 ? +2 : =2) : (cond3 ? -2 : !2)</td>
+        <td><strong>{if:testcondition1}{if:testcondition4}+2{else}=2{endif}{else}{if:testcondition3}-2{else}!2{endif}{endif}</strong></td>
+    </tr>
+    <tr>
+        <td class="mono">cond2 ? (cond3 ? +3 : =3) : (cond4 ? -3 : !3)</td>
+        <td><strong>{if:testcondition2}{if:testcondition3}{if:is_false}exception{else}+3{endif}{else}=3{endif}{else}{if:testcondition4}-3{else}!3{endif}{endif}</strong></td>
+    </tr>
+    <tr>
+        <td class="mono">cond2 ? (cond4 ? +4 : =4) : (cond3 ? -4 : !4)</td>
+        <td><strong>{if:testcondition2}{if:testcondition4}+4{else}=4{endif}{else}{if:testcondition3}-4{else}!4{endif}{endif}</strong></td>
+    </tr>
+</table>
 
-{if:eq:2:"a"}
-	Jo Para = 4
-{endif}
-<br>
-
-<a class=inaktive href=if_test.html?testcond1toogle>Toggle Cond 1</a><br>
-<a class=inaktive href=if_test.html?testcond2toogle>Toggle Cond 2</a><br>
-<a class=inaktive href=if_test.html?testcond3toogle>Toggle Cond 3</a><br>
-<a class=inaktive href=if_test.html?testcond4toogle>Toggle Cond 4</a><br>
-
-
-{if:testcondition1}
-	{if:testcondition3}
-		{if:is_true}
-			+1
-		{else}
-			exception
-		{endif}
-	{else}
-		=1
-	{endif}
-{else}
-	{if:testcondition4}
-		-1
-	{else}
-		!1
-	{endif}
-{endif}<br>
-
-
-{if:testcondition1}
-	{if:testcondition4}
-		+2
-	{else}
-		=2
-	{endif}
-{else}
-	{if:testcondition3}
-		-2
-	{else}
-		!2
-	{endif}
-{endif}<br>
-
-
-{if:testcondition2}
-	{if:testcondition3}
-		{if:is_false}
-			exception
-		{else}
-			+3
-		{endif}
-	{else}
-		=3
-	{endif}
-{else}
-	{if:testcondition4}
-		-3
-	{else}
-		!3
-	{endif}
-{endif}<br>
-
-
-{if:testcondition2}
-	{if:testcondition4}
-		+4
-	{else}
-		=4
-	{endif}
-{else}
-	{if:testcondition3}
-		-4
-	{else}
-		!4
-	{endif}
-{endif}<br>
-
-<br>
-<br>
-{b:dumpSessionStore}<br>
+<h2>Session State</h2>
+{b:dumpSessionStore}
 
 {include:footer.inc}

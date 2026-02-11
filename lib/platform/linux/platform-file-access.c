@@ -14,8 +14,12 @@ SPDX-License-Identifier: MPL-2.0
 
 */
 
+/* POSIX.1-2008 for st_mtim (struct timespec) in struct stat */
 #ifndef _POSIX_C_SOURCE
-	#define _POSIX_C_SOURCE 1
+	#define _POSIX_C_SOURCE 200809L
+#elif _POSIX_C_SOURCE < 200809L
+	#undef _POSIX_C_SOURCE
+	#define _POSIX_C_SOURCE 200809L
 #endif
 
 
@@ -120,29 +124,16 @@ int PlatformGetFileInfo(WebserverFileInfo* file, int* time_changed, int *new_siz
 	struct tm *ts;
 	size_t len;
 	char* buffer;
-#ifdef __MUSL__
 	time_t f_sec;
-	time_t f_nsec;
-#else
-	__time_t f_sec;
-	__time_t f_nsec;
-#endif
+	long f_nsec;
 
 	if ( 0 > stat( (char*) file->FilePath, &st) ){
 		return 0;
 	}
 
-#ifdef __USE_MISC
+	/* POSIX.1-2008 st_mtim (struct timespec) - works on glibc, musl, uClibc-ng */
 	f_sec = st.st_mtim.tv_sec;
 	f_nsec = st.st_mtim.tv_nsec;
-#else
-	f_sec  = st.st_mtime;
-	#ifdef __MUSL__
-		f_nsec = st.st_mtim.tv_nsec;
-	#else
-		f_nsec = st.st_mtimensec;
-	#endif
-#endif
 
 	*new_size = st.st_size;
 	*time_changed = 0;

@@ -16,6 +16,7 @@ SPDX-License-Identifier: MPL-2.0
 
 
 #include "webserver.h"
+#include "intern/reverse_proxy.h"
 
 #ifdef DMALLOC
 #include <dmalloc/dmalloc.h>
@@ -32,6 +33,10 @@ static void createParameter(HttpRequestHeader *header, char* name, unsigned int 
 
 	if (value != 0) {
 		url_decode(value);
+		/* Check for script injection in parameter values (XSS prevention) */
+		if (stringfind(value, "<script>") > 0 || stringfind(value, "</script>") > 0) {
+			header->error = 1;
+		}
 		setWSVariableString(var, value);
 	}
 
@@ -156,22 +161,37 @@ static void recieveParameterFromGet(char *line, HttpRequestHeader *header, int l
 static void url_sanity_check( HttpRequestHeader *header ){
 	int pos;
 
+	/* Preserve existing error (e.g., from parameter validation) */
+	if (header->error == 1) {
+		return;
+	}
 	header->error = 0;
+
+	// Check for null byte injection BEFORE decode (%00 becomes \0 which terminates strings)
+	pos = stringfind(header->url, "%00");
+	if (pos > 0) {
+		header->error = 1;
+		return;
+	}
+
+	// URL decode FIRST, then check for malicious patterns
+	// This prevents bypass via URL encoding (e.g., %3Cscript%3E)
+	url_decode( header->url );
+
+	// Check for directory traversal
+	pos = stringfind(header->url, "..");
+	if (pos > 0) {
+		header->error = 1;
+		return;
+	}
+
+	// Check for script injection (XSS)
 	pos = stringfind(header->url, "<script>");
 	if (pos > 0) {
 		header->error = 1;
 		return;
-	} else {
-		pos = stringfind(header->url, "</script>");
-		if (pos > 0) {
-			header->error = 1;
-			return;
-		}
 	}
-
-	// TODO die Fehlermeldung überarbeiten die hier von kommt
-	url_decode( header->url );
-	pos = stringfind(header->url, "..");
+	pos = stringfind(header->url, "</script>");
 	if (pos > 0) {
 		header->error = 1;
 		return;
@@ -200,11 +220,15 @@ static int header_attr_compare( char* text, unsigned int text_length, char* line
 #define CHECK_HEADER_LINE2(a,b)  h_len = strlen(a); \
 if (!strncmp((char*)line2,a,h_len)) \
 { \
-	len = stringfind(line2, "\r\n") - h_len - 1; \
-	if ( header->b != 0) WebserverFree(header->b); \
-    header->b = (char*)WebserverMalloc( len + 1 ); \
-    Webserver_strncpy((char*)header->b,len+1,(char*)&line2[h_len],len); \
-    line2 = &line2[h_len + len ]; length2 -= h_len + len ; continue ; \
+	int crlf_pos = stringfind(line2, "\r\n"); \
+	if (crlf_pos > (int)h_len) { \
+		len = crlf_pos - h_len - 1; \
+		if ( header->b != 0) WebserverFree(header->b); \
+		header->b = (char*)WebserverMalloc( len + 1 ); \
+		Webserver_strncpy((char*)header->b,len+1,(char*)&line2[h_len],len); \
+		line2 = &line2[h_len + len ]; length2 -= h_len + len ; \
+	} \
+	continue ; \
 }
 
 int analyseFormDataLine(socket_info* sock, char *line, unsigned int length, HttpRequestHeader *header) {
@@ -299,22 +323,21 @@ int analyseHeaderLine(socket_info* sock, char *line, unsigned int length, HttpRe
 		}
 #endif
 
-		pos = stringfind(&line[5], "?");
-		if (pos == 0) /* keine parameter */
+		char* qmark = strchr(&line[5], '?');
+		if (qmark == NULL) /* keine parameter */
 		{
 			pos = stringfind(&line[5], " ");
 			header->url = (char *) WebserverMalloc( pos + 1 );
-			Webserver_strncpy( header->url, pos + 1, &line[5], pos); /* -4 wegen dem GET am anfang */
+			Webserver_strncpy( header->url, pos + 1, &line[5], pos);
 		} else /* mit parametern */
 		{
 			*c_pos = '\0';
-			//printf("%s\n",c_pos);
-			//fflush( stdout );
 
+			pos = qmark - &line[5];
 			header->url = (char *) WebserverMalloc( pos + 1 );
-			Webserver_strncpy( header->url, pos + 1, &line[5], pos); /* -4 wegen dem GET am anfang */
+			Webserver_strncpy( header->url, pos + 1, &line[5], pos);
 
-			char* start = ( &line[5] ) + pos + 1;
+			char* start = qmark + 1;
 			int l = c_pos - start;
 			recieveParameterFromGet(start , header, l);
 
@@ -344,20 +367,21 @@ int analyseHeaderLine(socket_info* sock, char *line, unsigned int length, HttpRe
 
 		header->method=HTTP_POST;
 
-		pos = stringfind(&line[6], "?");
-		if (pos == 0) /* keine parameter */
+		char* qmark_post = strchr(&line[6], '?');
+		if (qmark_post == NULL) /* keine parameter */
 		{
 			pos = stringfind(&line[6], " ");
 			header->url = (char *) WebserverMalloc( pos + 1 );
-			Webserver_strncpy( header->url, pos + 1, &line[6], pos); /* -4 wegen dem GET am anfang */
+			Webserver_strncpy( header->url, pos + 1, &line[6], pos);
 		} else /* mit parametern */
 		{
 			*c_pos = '\0';
 
+			pos = qmark_post - &line[6];
 			header->url = (char *) WebserverMalloc( pos + 1 );
-			Webserver_strncpy( header->url, pos + 1, &line[6], pos); /* -4 wegen dem GET am anfang */
+			Webserver_strncpy( header->url, pos + 1, &line[6], pos);
 
-			char* start = ( &line[6] ) + pos + 1;
+			char* start = qmark_post + 1;
 			int l = c_pos - start;
 
 			recieveParameterFromGet(start , header, l);
@@ -381,22 +405,21 @@ int analyseHeaderLine(socket_info* sock, char *line, unsigned int length, HttpRe
 	if ( ( header->method == 0 ) && (!strncmp( line, "OPTIONS ", 8)) ) {
 		header->method = HTTP_OPTIONS;
 
-		pos = stringfind(&line[9], "?");
-		if (pos == 0) /* keine parameter */
+		char* qmark_opt = strchr(&line[9], '?');
+		if (qmark_opt == NULL) /* keine parameter */
 		{
 			pos = stringfind(&line[9], " ");
 			header->url = (char *) WebserverMalloc( pos + 1 );
-			Webserver_strncpy( header->url, pos + 1, &line[9], pos); /* -4 wegen dem GET am anfang */
+			Webserver_strncpy( header->url, pos + 1, &line[9], pos);
 		} else /* mit parametern */
 		{
 			*c_pos = '\0';
-			//printf("%s\n",c_pos);
-			//fflush( stdout );
 
+			pos = qmark_opt - &line[9];
 			header->url = (char *) WebserverMalloc( pos + 1 );
-			Webserver_strncpy( header->url, pos + 1,  &line[9], pos); /* -4 wegen dem GET am anfang */
+			Webserver_strncpy( header->url, pos + 1,  &line[9], pos);
 
-			char* start = ( &line[9] ) + pos + 1;
+			char* start = qmark_opt + 1;
 			int l = c_pos - start;
 			recieveParameterFromGet(start , header, l);
 
@@ -438,35 +461,49 @@ int analyseHeaderLine(socket_info* sock, char *line, unsigned int length, HttpRe
 
 
 	/* noch nicht verarbeitete header lines */
-	if (!strncmp( line, "Accept-Language: ", 17)) {
-		return 0;
-	}
-	
-	if (!strncmp( line, "Accept-Charset: ", 16)) {
-		return 0;
-	}
-	
-	if (!strncmp( line, "Keep-Alive: ", 12)) {
-		return 0;
-	}
-	
-	if (!strncmp( line, "Cache-Control: ", 14)) {
+	if (!strncasecmp( line, "Accept-Language: ", 17)) {
 		return 0;
 	}
 
-	if (!strncmp( line, "Cookie: ", 8)) {
+	if (!strncasecmp( line, "Accept-Charset: ", 16)) {
+		return 0;
+	}
+
+	if (!strncasecmp( line, "Keep-Alive: ", 12)) {
+		return 0;
+	}
+
+	if (!strncasecmp( line, "Cache-Control: ", 14)) {
+		return 0;
+	}
+
+	if (!strncasecmp( line, "Cookie: ", 8)) {
 		parseCookies(line, length, header);
 		return 0;
 	}
 
-	if ( (!strncmp( line, "Content-Length: ", 16)) && ( strlen( &line[15]  ) > 1  ) ) {
-		header->contentlenght = atol( &line[16]);
+	if ( (!strncasecmp( line, "Content-Length: ", 16)) && ( strlen( &line[15]  ) > 1  ) ) {
+		const char* val = &line[16];
+		/* Reject negative values and non-numeric input */
+		if (*val == '-' || *val < '0' || *val > '9') {
+			header->contentlenght = 0;
+		} else {
+			/* Note: strtoull overflow returns ULLONG_MAX which is safely rejected
+			 * by the max_post_size check in check_post_header() */
+			char* endptr;
+			header->contentlenght = strtoull(val, &endptr, 10);
+			/* Reject trailing garbage after number (HTTP Request Smuggling prevention) */
+			if (*endptr != '\0' && *endptr != '\r' && *endptr != '\n' && *endptr != ' ') {
+				header->contentlenght = 0;
+				header->error = 1;
+			}
+		}
 		return 0;
 	}
 
 
 	h_len = strlen("Host: ");
-	if (!strncmp( line,"Host: ",h_len)){
+	if (!strncasecmp( line,"Host: ",h_len)){
 		len = length - h_len;
 		if ( header->Host != 0){
 			WebserverFree(header->Host);
@@ -586,6 +623,7 @@ int analyseHeaderLine(socket_info* sock, char *line, unsigned int length, HttpRe
  *		-4  = Methode nicht erlaubt
  *		-3  = Header zuende aber noch weitere daten vorhanden
  * 		-2  = Header ist zuende und keine weiteren Daten vorhanden
+ * 		-7  = Reverse Proxy Handler
  *
  *
  *
@@ -643,12 +681,18 @@ int ParseHeader(socket_info* sock, HttpRequestHeader* header, char* buffer, unsi
 		if ((buffer[i] == '\n') && (buffer[i - 1] == '\r')){
 
 			back = buffer[i - 1];
+			
+			if ( checkReverseProxy( sock, buffer, length ) == 0 ){
+				return -7;
+			}
+			
 			buffer[i - 1] = '\0';
 			line_length = &buffer[i - 1] - pos;
 			if ( analyseHeaderLine(sock, pos, line_length, header) < 0 ){
 				buffer[i - 1] = back;
 				return -4;
 			}
+
 			pos = &buffer[i + 1];
 			last_line_end = i + 1;
 			buffer[i - 1] = back;

@@ -199,8 +199,9 @@ void vprintHeaderChunk(socket_info* sock, const char *fmt, va_list argptr) {
 	
 	
 	writeChunk(&sock->header_chunk_list, (unsigned char*) tmp, l);
-	
+
 	WebserverFree( tmp );
+	va_end(argcopy);
 }
 #pragma GCC diagnostic warning "-Wformat-nonliteral"
 
@@ -237,6 +238,7 @@ int vprintHTMLChunk(socket_info* sock, const char *fmt, va_list argptr) {
 
 	writeChunk(&sock->html_chunk_list, (unsigned char*) tmp, l );
 	WebserverFree( tmp );
+	va_end(argcopy);
 	return l;
 }
 #pragma GCC diagnostic warning "-Wformat-nonliteral"
@@ -269,8 +271,9 @@ static void vprintWebsocketChunk(socket_info* sock, const char *fmt, va_list arg
 	l = vsnprintf(tmp, l + 1, fmt, argcopy);
 	
 	writeChunk(&sock->websocket_chunk_list, (unsigned char*) tmp, l);
-	
+
 	WebserverFree( tmp );
+	va_end(argcopy);
 }
 
 void printWebsocketChunk(socket_info* sock, const char *fmt, ... ) {
@@ -417,7 +420,7 @@ void generateOutputBuffer(socket_info* sock) {
 #endif
 
 #ifdef _WEBSERVER_DEBUG_
-	LOG ( CONNECTION_LOG,NOTICE_LEVEL,sock->socket, "compiled HTML Size %d ",size );
+	LOG ( CONNECTION_LOG,NOTICE_LEVEL,sock->socket, "compiled HTML Size %ld ",size );
 #endif
 	output->body.buffer = buffer;
 	output->body.buffer_size = offset;

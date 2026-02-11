@@ -324,7 +324,7 @@ void generateEtag(WebserverFileInfo* file) {
 	#error FILE_OFF_PRINT_HEX not defined for platform
 #endif
 		
-		file->etagLength = sprintf((char*)file->etag, "%08"FILE_OFF_PRINT_HEX"%08X%08X", file->DataLenght, crc, adler);
+		file->etagLength = sprintf((char*)file->etag, "%08"FILE_OFF_PRINT_HEX"%08X%08X", FILE_OFF_CAST(file->DataLenght), crc, adler);
 
 		PlatformCloseDataStream();
 		WebserverFree(data);
@@ -376,7 +376,7 @@ void generateEtag(WebserverFileInfo* file) {
 
 			FILE_OFFSET ret2 = PlatformReadBytes(data, to_read);
 			if ( ret2 != to_read ){
-				printf("Error: read mismatch %"FILE_OFF_PRINT_INT" != %"PRIu32"\n",ret2,to_read);
+				printf("Error: read mismatch %"FILE_OFF_PRINT_INT" != %"PRIu32"\n",FILE_OFF_CAST(ret2),to_read);
 			}
 
 			WebserverSHA1Update(sha_context, data, to_read);

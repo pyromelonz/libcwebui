@@ -108,6 +108,12 @@ void sendHTMLVariable(dummy_handler* s,dummy_var* var);
 */
 void sendHTML(dummy_handler* s, const char* text, const unsigned int length);
 
+/*
+		Custom Response Header setzen (für WS_FILE_TYPE_CUSTOM)
+		Muss vor sendHTML() aufgerufen werden.
+*/
+void ws_set_response_header(dummy_handler* s, const char* name, const char* value);
+
 
 /*
 		Globalen Variablen locken / unlocken
@@ -373,6 +379,62 @@ void RegisterEngineFunction(const char* name,user_api_function f,const char* fil
 void RegisterEngineCondition(const char* name,user_api_condition f,const char* file,int line);
 void RegisterWebsocketHandler(const char* url,websocket_api_handler f,const char* file,int line);
 
+/***********************************************************************************************
+*                                                                                              *
+*          WebSocket Streaming API                                                             *
+*                                                                                              *
+************************************************************************************************/
+
+#ifdef WEBSERVER_USE_WEBSOCKETS
+
+/**
+ * Streaming context for large WebSocket frames.
+ * Passed to all streaming callbacks.
+ */
+typedef struct websocket_stream_context {
+    char* guid;                    /* WebSocket Connection GUID */
+    char* url;                     /* Request URL */
+    uint64_t total_length;         /* Total frame length (from header) */
+    uint64_t received_length;      /* Bytes received so far */
+    char is_binary;                /* Binary or Text frame */
+    char aborted;                  /* Handler aborted the stream */
+    void* user_data;               /* Handler-specific data */
+} websocket_stream_context;
+
+/**
+ * Streaming callback types
+ */
+typedef void (*ws_stream_start_handler)(websocket_stream_context* ctx);
+typedef void (*ws_stream_chunk_handler)(websocket_stream_context* ctx,
+                                         const unsigned char* data,
+                                         uint32_t length);
+typedef void (*ws_stream_end_handler)(websocket_stream_context* ctx,
+                                       int success);  /* success=0 on error/abort */
+
+/**
+ * Register a streaming handler for a WebSocket URL.
+ * When registered, ALL frames on this URL use streaming (no threshold).
+ */
+void RegisterWebsocketStreamHandler(
+    const char* url,
+    ws_stream_start_handler on_start,
+    ws_stream_chunk_handler on_chunk,
+    ws_stream_end_handler on_end
+);
+
+/**
+ * Helper functions for streaming handlers
+ */
+void WebsocketStreamSetUserData(websocket_stream_context* ctx, void* data);
+void* WebsocketStreamGetUserData(websocket_stream_context* ctx);
+
+/**
+ * Abort the current stream (e.g., on handler error)
+ */
+void WebsocketStreamAbort(websocket_stream_context* ctx);
+
+#endif /* WEBSERVER_USE_WEBSOCKETS */
+
 void WebserverRegisterPluginErrorHandler(plugin_error_handler f);
 
 
@@ -384,6 +446,7 @@ void WebserverShutdownHandler(void);
 void WebserverConfigSetInt(const char* name, int value);
 int  WebserverConfigGetInt(const char* name);
 void WebserverConfigSetText(const char* name, const char* text);
+void WebserverConfigGetText(const char* name, char* text, int text_size);
 
 void WebserverInjectExternFD(int fd, extern_handler handle );
 
@@ -402,11 +465,15 @@ typedef enum {
 	WS_FILE_TYPE_XSL,
 	WS_FILE_TYPE_SVG,
 	WS_FILE_TYPE_JSON,
-	WS_FILE_TYPE_NONE
+	WS_FILE_TYPE_NONE,
+	WS_FILE_TYPE_CUSTOM   /* Custom headers set via setResponseHeader() */
 } WS_FILE_TYPES;
 
 typedef WS_FILE_TYPES (*url_handler_func)( dummy_handler* s, const char* url );
 void ws_register_url_function( char* url, url_handler_func func );
+
+void ws_reverse_proxy_register_uds( const char* method, const char* url, const char* path );
+
 
 /*
  *		Python API

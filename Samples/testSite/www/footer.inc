@@ -1,15 +1,13 @@
 TEMPLATE_V1
 
-</table>
-<table>
-<tr>
-<td>
-		{include:system_infos.inc}
-	<td>
+        <!-- Footer -->
+        <div class="footer">
+            {include:system_infos.inc}
+        </div>
 
+    </div><!-- /main-content -->
 
-</table>
-
+</div><!-- /page-wrapper -->
 
 </body>
 </html>

@@ -166,13 +166,15 @@ PyObject* py_set_plugin_name( PyObject* self, PyObject *args )
 
 int py_load_python_plugin( const char* path ){
 
-	if ( 0 != access( path , F_OK ) ){
+	/* Open file first to avoid TOCTOU race condition (no separate access() check) */
+	FILE* fp = fopen(path, "r");
+	if ( !fp ){
 		printf("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n");
 		printf("loading python plugin : %s  not found \n",path);
 		printf("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n");
 		return 0;
 	}
-	
+
 	last_py_plugin_path = path;
 
 	struct web_py_plugin * mod = malloc( sizeof( struct web_py_plugin ) );
@@ -218,27 +220,17 @@ int py_load_python_plugin( const char* path ){
 	printf("size : %d\n",mod->size);
 	printf("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n");
 
-	FILE* fp = fopen(path,"r");
-	if ( fp ){
+	context = mod;
 
-		context = mod;
-		//context = NULL;
+	char run[1000];
+	sprintf( run, "import sys\n" "sys.path.append('%s')\n", mod->exec_path );
 
-		
-		getcwd(cwd, sizeof(cwd));
-		//chdir( mod->exec_path );
-		
-		char run[1000];
-		sprintf( run, "import sys\n" "sys.path.append('%s')\n", mod->exec_path );
-		
-		PyRun_SimpleString( run );
-		PyRun_File( fp,path , Py_file_input, mod->global_namespace,  mod->global_namespace );
-		//chdir( cwd );
-		
-		context = NULL;
+	PyRun_SimpleString( run );
+	PyRun_File( fp, path, Py_file_input, mod->global_namespace, mod->global_namespace );
 
-		fclose(fp);
-	}
+	context = NULL;
+
+	fclose(fp);
 
 	PyErr_Print();
 
@@ -292,16 +284,41 @@ void py_call_engine_function( http_request *s, user_func_s *func , FUNCTION_PARA
 
 				context = func->plugin->py_plugin;
 
-				//PyObject* last_namespace = context->global_namespace;
+				/*
+				 * TODO: Memory Leak beim Plugin-Reload
+				 *
+				 * Problem: Neuer Namespace wird geholt, alter geht verloren.
+				 * - PyModule_GetDict() gibt borrowed reference zurück (kein DECREF möglich)
+				 * - Alter Namespace enthält noch Funktionsobjekte
+				 * - Engine hält noch func->py_func Referenzen auf alte Funktionen
+				 *
+				 * Warum __main__ Namespace statt PyDict_New()?
+				 * Mit leerem Dict funktioniert "import" nicht - __builtins__ fehlt.
+				 * __main__ hat alles was Python braucht, daher wurde das verwendet.
+				 *
+				 * Warum neuer Namespace beim Reload? Um alte Funktionen zu entfernen
+				 * die im neuen Code nicht mehr existieren (sauberer Zustand).
+				 *
+				 * Richtige Lösung:
+				 * 1. unregister_plugin_functions(plugin) - alle Funktionen des Plugins entfernen
+				 * 2. PyDict_New() - eigenen Namespace erstellen (owned, nicht borrowed)
+				 * 3. Namespace initialisieren (testen was wirklich gebraucht wird):
+				 *    - __builtins__: PyEval_GetBuiltins() - KRITISCH für import/print/etc
+				 *    - __name__: "__main__" - für "if __name__ == '__main__'" checks
+				 *    - __file__: Pfad zum Script - falls Script seinen Pfad braucht
+				 *    - __package__: NULL/None - für relative imports
+				 * 4. PyRun_File() mit neuem Namespace
+				 * 5. Py_XDECREF(old_namespace) - jetzt sicher freigeben
+				 *
+				 * Einfache Alternative: Bestehenden Namespace wiederverwenden statt
+				 * neuen holen. Dann überschreiben neue Definitionen die alten,
+				 * aber alte Funktionen bleiben erhalten.
+				 */
+				#warning mem leak wegen neuem namespace - siehe TODO Kommentar
 
 				context->global_namespace = PyModule_GetDict( PyImport_AddModule("__main__") );
-				
+
 				PyRun_File( fp,func->plugin->path , Py_file_input, context->global_namespace,  context->global_namespace );
-				
-				//Py_XDECREF(last_namespace);
-				#warning mem leak wegen neuem namspace
-				// alter namspace kann aber nicht einfach gelöscht werden
-				// noch eine verbindung zum interpreter ?
 
 				PyErr_Print();
 
@@ -396,27 +413,24 @@ static PyMODINIT_FUNC py_init(void){
 
 int py_init_modules( void ){
 
-
-#if PY_MAJOR_VERSION >= 3
-	wchar_t *program = Py_DecodeLocale("libcwebui", NULL);
-    if (program == NULL) {
-        fprintf(stderr, "Fatal error: cannot decode argv[0]\n");
-        exit(1);
-    }
-	Py_SetProgramName(program);
-#else
-	Py_SetProgramName("libcwebui");
-#endif
-
 	if (PyImport_AppendInittab( "libcwebui", py_init) == -1){
 		printf("Failed to add libcwebui to the interpreter's builtin modules");
 		PyErr_Print();
 		return 1;
     }
 
+#if PY_VERSION_HEX >= 0x030B0000
+	// Python 3.11+: set_prog_name() uses PyConfig and initializes Python
 	set_prog_name();
-
+#elif PY_MAJOR_VERSION >= 3
+	// Python 3.0 - 3.10
+	Py_SetProgramName(L"libcwebui");
 	Py_Initialize();
+#else
+	// Python 2.x
+	Py_SetProgramName("libcwebui");
+	Py_Initialize();
+#endif
 	
 	//PyEval_InitThreads();
 

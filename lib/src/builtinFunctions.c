@@ -66,26 +66,28 @@ static void print_compiler ( http_request* s );
 
 
 static int memoryInfosDetail ( http_request* s ) {
-    int all_file_size=0;
-    int size=0;
-    int session_store_count=0;
+    int all_file_size = 0;
+    int size = 0;
+    int session_store_count = 0;
     unsigned long all_session_store_size;
-	unsigned long sockets_size;
-	int sockets;
+    unsigned long sockets_size;
+    int sockets;
     int count = 0;
 
     all_file_size = getLoadedFilesSize(&count);
-	all_session_store_size = dumpSessionsSize(&session_store_count);
-	sockets_size = dumpSocketsSize(&sockets);
+    all_session_store_size = dumpSessionsSize(&session_store_count);
+    sockets_size = dumpSocketsSize(&sockets);
 
-    size+=all_file_size + all_session_store_size + sockets_size;
+    size += all_file_size + all_session_store_size + sockets_size;
 
-    printHTMLChunk ( s->socket,"<tr><td>Files<td>%d<td>%d",count,all_file_size );
-    printHTMLChunk ( s->socket,"<tr><td>SessionStores<td>%d<td>%ld",session_store_count,all_session_store_size );
-	printHTMLChunk ( s->socket,"<tr><td>Sockets<td>%d<td>%ld",sockets,sockets_size);
-    printHTMLChunk ( s->socket,"<tr><td>MemorySize<td>%d",size );
-    printHTMLChunk ( s->socket,"<tr><td>AllocatedMemory<td>%ld",allocated );
-    printHTMLChunk ( s->socket,"<tr><td>AllocatedMemory MAX<td>%ld",allocated_max );
+    /* Output table rows - table header is in template */
+    printHTMLChunk ( s->socket, "<tr><td>Files</td><td>%d</td><td>%d</td></tr>", count, all_file_size );
+    printHTMLChunk ( s->socket, "<tr><td>Sessions</td><td>%d</td><td>%ld</td></tr>", session_store_count, all_session_store_size );
+    printHTMLChunk ( s->socket, "<tr><td>Sockets</td><td>%d</td><td>%ld</td></tr>", sockets, sockets_size );
+    printHTMLChunk ( s->socket, "<tr><td>Total</td><td>-</td><td>%d</td></tr>", size );
+    printHTMLChunk ( s->socket, "<tr><td>Allocated</td><td>-</td><td>%ld</td></tr>", allocated );
+    printHTMLChunk ( s->socket, "<tr><td>Allocated Max</td><td>-</td><td>%ld</td></tr>", allocated_max );
+
 #ifdef _WEBSERVER_MEMORY_DEBUG_
     print_blocks_now = 1;
 #endif
@@ -267,11 +269,17 @@ DEFINE_FUNCTION_INT( 64bit_avaible ){
 }
 
 DEFINE_FUNCTION_INT( memoryInfos ){
-    printHTMLChunk ( s->socket,"<font bold size=3>Allocated Memory</font>" );
-    printHTMLChunk ( s->socket,"<table><th>Typ<th>Bytes" );
-    printHTMLChunk ( s->socket,"<tr><td>CUR<td>%ld",allocated );
-    printHTMLChunk ( s->socket,"<tr><td>MAX<td>%ld",allocated_max );
-    printHTMLChunk ( s->socket,"</table>" );
+    /* Output memory stats for sidebar widget using CSS classes */
+    printHTMLChunk ( s->socket,
+        "<div class=\"memory-stats-row\">"
+            "<span class=\"memory-stats-label\">Current</span>"
+            "<span class=\"memory-stats-value\">%ld</span>"
+        "</div>", allocated );
+    printHTMLChunk ( s->socket,
+        "<div class=\"memory-stats-row\">"
+            "<span class=\"memory-stats-label\">Max</span>"
+            "<span class=\"memory-stats-value\">%ld</span>"
+        "</div>", allocated_max );
 }
 
 DEFINE_FUNCTION_INT( compiler ) {        print_compiler( s );                                               }

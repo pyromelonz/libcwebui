@@ -198,6 +198,11 @@ int PlatformCreateSem(WS_SEMAPHORE_TYPE* sem, int init_value){
 	return 0;
 }
 
+int PlatformDestroySem(WS_SEMAPHORE_TYPE* sem){
+	dispatch_release( *sem );
+	return 0;
+}
+
 int PlatformPostSem(WS_SEMAPHORE_TYPE* sem) {
 	dispatch_semaphore_signal( *sem );
 	return 0;

@@ -107,7 +107,7 @@ static void checkSessionTimeout(void) {
 
 		if ( ( timeout != 0 ) && ( diff > timeout * PlatformGetTicksPerSeconde() ) ) {
 #ifdef _WEBSERVER_SESSION_DEBUG_
-			WebServerPrintf("Delete SessionStore GUID : %s\r\n",ss->guid);
+			LOG(SESSION_LOG, DEBUG_LEVEL, 0, "Delete SessionStore GUID : %s", ss->guid);
 #endif
 			ws_list_append(&del_list, node, 0);
 			deleted++;
@@ -132,25 +132,37 @@ static void checkSessionTimeout(void) {
 
 #ifdef _WEBSERVER_SESSION_DEBUG_
 	if (deleted > 0){
-		WebServerPrintf("Deleted Sessions %d\n",deleted);
+		LOG(SESSION_LOG, DEBUG_LEVEL, 0, "Deleted Sessions %d", deleted);
 	}
 #endif
 
 }
 
+/* Timing-safe comparison to prevent timing attacks on session IDs.
+ * Compares actual string length (UUID is 36 chars, not WEBSERVER_GUID_LENGTH buffer size). */
 static char guid_cmp(const char* a, const char* b) {
-	int i;
+	size_t len_a, len_b, i;
+	unsigned char result = 0;
+
 	if (a[0] == 0){
 		return 0;
 	}
-	for (i = 0; i < WEBSERVER_GUID_LENGTH; i++) {
-		if ( ( a[i] == b[i] ) && ( a[i] == 0 ) ) break;
 
-		if (a[i] != b[i]){
-			return 0;
-		}
+	len_a = strlen(a);
+	len_b = strlen(b);
+
+	/* Length mismatch */
+	if (len_a != len_b) {
+		return 0;
 	}
-	return 1;
+
+	/* XOR all bytes - any difference sets bits in result */
+	for (i = 0; i < len_a; i++) {
+		result |= (unsigned char)(a[i] ^ b[i]);
+	}
+
+	/* result is 0 only if all bytes matched */
+	return (result == 0) ? 1 : 0;
 }
 
 int checkUserRegistered(http_request* s) {
@@ -229,8 +241,10 @@ int checkUserRegistered(http_request* s) {
 		guid_var_ssl = int_getSessionValue(s, SESSION_STORE_SSL, (char*) "session-id-ssl");
 		if (0 != guid_var_ssl) {
 			got_guid_ssl = true;
-			//printf("guid_var->val.value_string     : %s\n",guid_var->val.value_string);
-			//printf("guid_var_ssl->val.value_string : %s\n",guid_var_ssl->val.value_string);
+#ifdef _WEBSERVER_SESSION_DEBUG_
+			LOG(SESSION_LOG, DEBUG_LEVEL, s->socket->socket, "guid_var->val.value_string     : %s", guid_var->val.value_string);
+			LOG(SESSION_LOG, DEBUG_LEVEL, s->socket->socket, "guid_var_ssl->val.value_string : %s", guid_var_ssl->val.value_string);
+#endif
 			if (guid_cmp(guid_var->val.value_string, guid_var_ssl->val.value_string)) {
 				guid_match = true;
 				if (guid_match && true_both){
@@ -244,23 +258,29 @@ int checkUserRegistered(http_request* s) {
 	PlatformUnlockMutex( &session_mutex );
 
 	if (s->socket->use_ssl == 1) {
-		/*printf("got_guid_ssl: %d\n",got_guid_ssl);
-		printf("got_normal: %d\n",got_normal);
-		printf("got_giud: %d\n",got_giud);
-		printf("true_both: %d\n",true_both);
-		printf("true_normal: %d\n",true_normal);
-		printf("true_ssl: %d\n",true_ssl);
-		printf("guid_match: %d\n",guid_match);*/
+#ifdef _WEBSERVER_SESSION_DEBUG_
+		LOG(SESSION_LOG, DEBUG_LEVEL, s->socket->socket, "checkUserRegistered SSL: got_guid_ssl=%d got_normal=%d got_giud=%d true_both=%d true_normal=%d true_ssl=%d guid_match=%d",
+			got_guid_ssl, got_normal, got_giud, true_both, true_normal, true_ssl, guid_match);
+#endif
 
 		if (got_guid_ssl != got_giud){
+#ifdef _WEBSERVER_SESSION_DEBUG_
+			LOG(SESSION_LOG, DEBUG_LEVEL, s->socket->socket, "checkUserRegistered: SESSION_MISMATCH_ERROR (got_guid_ssl != got_giud)");
+#endif
 			return SESSION_MISMATCH_ERROR;
 		}
 
 		if (guid_match != true_both){
+#ifdef _WEBSERVER_SESSION_DEBUG_
+			LOG(SESSION_LOG, DEBUG_LEVEL, s->socket->socket, "checkUserRegistered: SESSION_MISMATCH_ERROR (guid_match != true_both)");
+#endif
 			return SESSION_MISMATCH_ERROR;
 		}
 
 		if (got_guid_ssl && got_normal && (true_normal != true_ssl)){
+#ifdef _WEBSERVER_SESSION_DEBUG_
+			LOG(SESSION_LOG, DEBUG_LEVEL, s->socket->socket, "checkUserRegistered: SESSION_MISMATCH_ERROR (true_normal != true_ssl)");
+#endif
 			return SESSION_MISMATCH_ERROR;
 		}
 	}
@@ -269,9 +289,15 @@ int checkUserRegistered(http_request* s) {
 
 
 	if (got_giud && true_normal){
+#ifdef _WEBSERVER_SESSION_DEBUG_
+		LOG(SESSION_LOG, DEBUG_LEVEL, s->socket->socket, "checkUserRegistered: NORMAL_CHECK_OK");
+#endif
 		return NORMAL_CHECK_OK;
 	}
 
+#ifdef _WEBSERVER_SESSION_DEBUG_
+	LOG(SESSION_LOG, DEBUG_LEVEL, s->socket->socket, "checkUserRegistered: NOT_REGISTERED (got_giud=%d true_normal=%d)", got_giud, true_normal);
+#endif
 	return NOT_REGISTERED;
 }
 
@@ -300,6 +326,15 @@ char setUserRegistered(http_request* s, char status) {
 			return true;
 		} else {
 			generateGUID(buf1, WEBSERVER_GUID_LENGTH);
+#ifdef _WEBSERVER_SESSION_DEBUG_
+			LOG(SESSION_LOG, DEBUG_LEVEL, s->socket->socket, "setUserRegistered: buf1 = %s", buf1);
+			LOG(SESSION_LOG, DEBUG_LEVEL, s->socket->socket, "setUserRegistered: s->store = %p, s->store_ssl = %p", (void*)s->store, (void*)s->store_ssl);
+#ifdef WEBSERVER_USE_SSL
+			LOG(SESSION_LOG, DEBUG_LEVEL, s->socket->socket, "setUserRegistered: s->socket->use_ssl = %d", s->socket->use_ssl);
+#else
+			LOG(SESSION_LOG, DEBUG_LEVEL, s->socket->socket, "setUserRegistered: SSL disabled");
+#endif
+#endif
 			PlatformLockMutex( &session_mutex );
 			int_setSessionValue(s, SESSION_STORE, (char*) "session-id", buf1);
 			int_setSessionValue(s, SESSION_STORE_SSL, (char*) "session-id-ssl", buf1);
@@ -338,7 +373,7 @@ void createSession(http_request* s, unsigned char ssl_store) {
 	if (ssl_store == 0) {
 		memcpy(ss->guid, s->guid, WEBSERVER_GUID_LENGTH); /* strlen((char*)s->guid)); */
 #ifdef _WEBSERVER_SESSION_DEBUG_
-				WebServerPrintf("Create SessionStore GUID : %s\r\n",s->guid);
+			LOG(SESSION_LOG, DEBUG_LEVEL, s->socket->socket, "Create SessionStore GUID : %s", s->guid);
 #endif
 		ss->ssl = 0;
 		s->store = ss;
@@ -346,7 +381,7 @@ void createSession(http_request* s, unsigned char ssl_store) {
 	if (ssl_store == 1) {
 		memcpy(ss->guid, s->guid_ssl, WEBSERVER_GUID_LENGTH); /* strlen((char*)s->guid)); */
 #ifdef _WEBSERVER_SESSION_DEBUG_
-				WebServerPrintf("Create SessionStore SSL GUID : %s\r\n",s->guid_ssl);
+			LOG(SESSION_LOG, DEBUG_LEVEL, s->socket->socket, "Create SessionStore SSL GUID : %s", s->guid_ssl);
 #endif
 		ss->ssl = 1;
 		s->store_ssl = ss;
@@ -741,7 +776,7 @@ void checkSessionCookie(http_request* s) {
 		s->create_cookie = 1;
 		generateGUID(s->guid, WEBSERVER_GUID_LENGTH);
 #ifdef _WEBSERVER_SESSION_DEBUG_
-		WebServerPrintf("Create Cookie GUID : %s\r\n",s->guid);
+		LOG(SESSION_LOG, DEBUG_LEVEL, s->socket->socket, "Create Cookie GUID : %s", s->guid);
 #endif
 	}
 #ifdef WEBSERVER_USE_SSL
@@ -750,7 +785,7 @@ void checkSessionCookie(http_request* s) {
 			s->create_cookie_ssl = 1;
 			generateGUID(s->guid_ssl, WEBSERVER_GUID_LENGTH);
 #ifdef _WEBSERVER_SESSION_DEBUG_
-			WebServerPrintf("Create Cookie SSL GUID : %s\r\n",s->guid_ssl);
+			LOG(SESSION_LOG, DEBUG_LEVEL, s->socket->socket, "Create Cookie SSL GUID : %s", s->guid_ssl);
 #endif
 		}
 	}
@@ -770,23 +805,31 @@ int dumpSessionStore( http_request* s ) {
 		s2 = getVariableStoreSize(s->store_ssl->vars);
 	}
 
-	printHTMLChunk(s->socket, "<table border=1><tr><th>Store %"PRIu32" Byte<th>SSLStore %"PRIu32" Byte<tr valign=top><td>", s1, s2);
+	/* Two-column layout for Store and SSL Store */
+	printHTMLChunk(s->socket,
+		"<table>"
+			"<tr>"
+				"<th>Store (%"PRIu32" bytes)</th>"
+				"<th>SSL Store (%"PRIu32" bytes)</th>"
+			"</tr>"
+			"<tr valign=\"top\"><td>",
+		s1, s2);
 
 	if (s->store != 0) {
 		dumpStore(s, s->store->vars);
 	} else {
-		printHTMLChunk(s->socket, "keine Session Variablen verf&uuml;gbar");
+		printHTMLChunk(s->socket, "<span class=\"text-muted\">No session variables</span>");
 	}
 
-	printHTMLChunk(s->socket, "<td>");
+	printHTMLChunk(s->socket, "</td><td>");
 
 	if (s->store_ssl != 0) {
 		dumpStore(s, s->store_ssl->vars);
 	} else {
-		printHTMLChunk(s->socket, "keine SSL Session Variablen verf&uuml;gbar");
+		printHTMLChunk(s->socket, "<span class=\"text-muted\">No SSL session variables</span>");
 	}
 
-	printHTMLChunk(s->socket, "</table>");
+	printHTMLChunk(s->socket, "</td></tr></table>");
 
 	return 0;
 }
@@ -797,40 +840,62 @@ void dumpSessions(http_request* s) {
 	ws_variable *var;
 	stk_stack* stack;
 	rb_red_blk_node* node;
+	int first = 1;
 
 	stack = RBEnumerate(session_store_tree, (void*)"0", (void*)"z");
+
+	/* Table header */
+	printHTMLChunk(s->socket,
+		"<table>"
+			"<tr>"
+				"<th>Session ID</th>"
+				"<th>Type</th>"
+				"<th>Size</th>"
+				"<th>Timeout</th>"
+				"<th>Variables</th>"
+			"</tr>");
 
 	while (0 != StackNotEmpty(stack)) {
 		node = (rb_red_blk_node*) StackPop(stack);
 		ss = (sessionStore*) node->info;
 		size = getVariableStoreSize(ss->vars);
 		size += sizeof(sessionStore);
-		/* size -= sizeof(ws_variable_store); // ist in getVariableStoreSize schon mit drin */
 
-		printHTMLChunk(s->socket, "<table border=1>");
-		char guid[25];
-		memcpy(guid,ss->guid,15);
-		guid[14]='.';
-		guid[15]='.';
-		guid[16]='\0';
-		printHTMLChunk(s->socket, "<tr><th>Store %"PRIu32" Byte<th>%s", size, guid);
-
+		/* Calculate remaining timeout */
 		ticks = PlatformGetTick() - ss->last_use;
 		ticks = (getConfigInt("session_timeout") * PlatformGetTicksPerSeconde()) - ticks;
 		ticks /= PlatformGetTicksPerSeconde();
 
-		printHTMLChunk(s->socket, "<tr><th>Timeout<th>%"PRIu32" s", ticks);
-		printHTMLChunk(s->socket, "<tr><th>Name<th>Value");
+		/* Session row */
+		printHTMLChunk(s->socket,
+			"<tr>"
+				"<td class=\"mono\">%s</td>"
+				"<td>%s</td>"
+				"<td>%"PRIu32" B</td>"
+				"<td>%"PRIu32" s</td>"
+				"<td>",
+			ss->guid,
+			ss->ssl ? "SSL" : "HTTP",
+			size, ticks);
 
+		/* Variables as name=value pairs, one per line */
 		var = getFirstVariable(ss->vars);
+		first = 1;
 		while (var != 0) {
-			printHTMLChunk(s->socket, "<tr><td>%s<td>", var->name);
+			printHTMLChunk(s->socket, "<span class=\"mono\">%s</span>=", var->name);
 			sendHTMLChunkVariable(s->socket, var);
+			printHTMLChunk(s->socket, "<br>");
+			first = 0;
 			var = getNextVariable(ss->vars);
 		}
+		if (first) {
+			printHTMLChunk(s->socket, "<span class=\"text-muted\">-</span>");
+		}
 
-		printHTMLChunk(s->socket, "</table>");
+		printHTMLChunk(s->socket, "</td></tr>");
 	}
+
+	printHTMLChunk(s->socket, "</table>");
 	free(stack);
 }
 

@@ -1,0 +1,72 @@
+name: Container Build Tests
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+permissions:
+  contents: read
+
+jobs:
+  debian:
+    runs-on: ubuntu-latest
+    container: ${{ matrix.container }}
+    strategy:
+      matrix:
+        container: ['debian:bookworm', 'debian:bullseye']
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: |
+        apt-get update
+        apt-get install -y build-essential python3-dev libevent-dev libssl-dev pkg-config
+
+    - name: Build
+      run: |
+        cd Samples/Linux/SingleMain
+        make clean
+        make
+
+  fedora:
+    runs-on: ubuntu-latest
+    container: ${{ matrix.container }}
+    strategy:
+      matrix:
+        container: ['fedora:41', 'fedora:40']
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: |
+        dnf install -y gcc gcc-c++ make python3-devel libevent-devel openssl-devel pkg-config
+
+    - name: Build
+      run: |
+        cd Samples/Linux/SingleMain
+        make clean
+        make
+
+  alpine:
+    runs-on: ubuntu-latest
+    container: ${{ matrix.container }}
+    strategy:
+      matrix:
+        container: ['alpine:3.21', 'alpine:3.20']
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: |
+        apk add --no-cache build-base python3-dev libevent-dev openssl-dev pkgconf linux-headers
+
+    - name: Build
+      run: |
+        cd Samples/Linux/SingleMain
+        make clean
+        make

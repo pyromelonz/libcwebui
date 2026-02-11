@@ -46,6 +46,11 @@ SPDX-License-Identifier: MPL-2.0
 	#define PLATFORM_DETECTED
 #endif
 
+#if defined( __FreeBSD__ ) && ! defined( PLATFORM_DETECTED )
+	#include "../freebsd/platform_includes.h"
+	#define PLATFORM_DETECTED
+#endif
+
 #if defined( BARRELFISH ) && ! defined( PLATFORM_DETECTED )
 	#include "../barrelfish/platform_includes.h"
 	#define PLATFORM_DETECTED

@@ -150,7 +150,7 @@ int prepare_file_content(WebserverFileInfo* file) {
 					}
 
 					if ( (off_t) decompressed != file->RealDataLenght ){
-						printf("warning: decompressing file failed : %s ( %lu != %ld )\n", file->FilePath, decompressed, file->RealDataLenght );
+						printf("warning: decompressing file failed : %s ( %zu != %"FILE_OFF_PRINT_INT" )\n", file->FilePath, decompressed, FILE_OFF_CAST(file->RealDataLenght) );
 						WebserverFree( ( void*) file->Data);
 						file->Data = 0;
 						return 0;

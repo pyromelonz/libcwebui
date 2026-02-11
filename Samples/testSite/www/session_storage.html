@@ -1,15 +1,29 @@
 TEMPLATE_V1
-{set:render;"title":"Session Variablen"}
+{echo_off}
+{set:render;"title":"Session Storage"}
+{set:render;"nav_session":"active"}
+{echo_on}
 
 {include:header.inc}
 
 <h1>Session Storage</h1>
 
+<p class="text-muted">This page demonstrates session variable handling.
+Session variables persist across requests for the same user.</p>
+
 {b:startSession}
+
+<h2>Session Status</h2>
+<div class="info-box">
+    <div class="info-row">
+        <span class="info-label">Status</span>
+        <span class="info-value">{f:checkregister}</span>
+    </div>
+</div>
 
 {include:session_test.inc}
 
-<h2>{f:checkregister}</h2><br>
-{b:dumpSessionStore}<br>
+<h2>Session Store Contents</h2>
+{b:dumpSessionStore}
 
 {include:footer.inc}

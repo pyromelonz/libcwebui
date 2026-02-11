@@ -1,95 +1,143 @@
 TEMPLATE_V1
+{echo_off}
 {b:startSession}
-
-{set:render;"title":"Memory"}
+{set:render;"title":"System Info"}
+{set:render;"nav_memory":"active"}
+{echo_on}
 
 {include:header.inc}
-<h1>Hallo Memory!</h1>
 
-<a href=memory_info.html?menu=0 class={if:eq:0:parameter;"menu"}aktive{else}inaktive{endif}>&Uuml;bersicht</a>
-<a href=memory_info.html?menu=1 class={if:eq:1:parameter;"menu"}aktive{else}inaktive{endif}>Sessions</a>
-<a href=memory_info.html?menu=2 class={if:eq:2:parameter;"menu"}aktive{else}inaktive{endif}>Sockets</a>
-<a href=memory_info.html?menu=3 class={if:eq:3:parameter;"menu"}aktive{else}inaktive{endif}>Files</a>
-<a href=memory_info.html?menu=4 class={if:eq:4:parameter;"menu"}aktive{else}inaktive{endif}>Functions</a>
-<a href=memory_info.html?menu=5 class={if:eq:5:parameter;"menu"}aktive{else}inaktive{endif}>Conditions</a>
-<a href=memory_info.html?menu=6 class={if:eq:6:parameter;"menu"}aktive{else}inaktive{endif}>Plugins</a>
-<a href=memory_info.html?menu=7 class={if:eq:7:parameter;"menu"}aktive{else}inaktive{endif}>Globals</a>
-<br>
+<h1>System Info</h1>
 
+<!-- Tab Navigation - demonstrates {if:eq:...} comparisons -->
+<div class="tabs">
+    <a href="memory_info.html?menu=0" class="tab {if:eq:0:parameter;"menu"}active{endif}">Overview</a>
+    <a href="memory_info.html?menu=1" class="tab {if:eq:1:parameter;"menu"}active{endif}">Sessions</a>
+    <a href="memory_info.html?menu=2" class="tab {if:eq:2:parameter;"menu"}active{endif}">Sockets</a>
+    <a href="memory_info.html?menu=3" class="tab {if:eq:3:parameter;"menu"}active{endif}">Files</a>
+    <a href="memory_info.html?menu=4" class="tab {if:eq:4:parameter;"menu"}active{endif}">Functions</a>
+    <a href="memory_info.html?menu=5" class="tab {if:eq:5:parameter;"menu"}active{endif}">Conditions</a>
+    <a href="memory_info.html?menu=6" class="tab {if:eq:6:parameter;"menu"}active{endif}">Plugins</a>
+    <a href="memory_info.html?menu=7" class="tab {if:eq:7:parameter;"menu"}active{endif}">Globals</a>
+</div>
 
+<!-- Tab: Overview -->
 {if:eq:parameter;"menu":0}
-	<div style="margin:0 10px 10px 0">
-	<table>
-	<tr><th>Type<th>Count<th>Size
-	{f:memoryInfosDetail}
-	</table>
-	</div><br>
+<h2>Memory Overview</h2>
+<table>
+    <tr>
+        <th>Type</th>
+        <th>Count</th>
+        <th>Size</th>
+    </tr>
+    {f:memoryInfosDetail}
+</table>
 {endif}
 
+<!-- Tab: Sessions -->
 {if:eq:parameter;"menu":1}
-	<div style="margin:0 10px 10px 0">
-	{f:dumpSessions}
-	</div><br>
+<h2>Active Sessions</h2>
+{f:dumpSessions}
 {endif}
 
+<!-- Tab: Sockets -->
 {if:eq:parameter;"menu":2}
-	<div style="margin:0 10px 10px 0">
-	<table>
-	<tr><th>Type<th>Port<th>Size<th>SSL<th>closed<th>Websocket</th>
-	{f:dumpSockets}
-	</table>
-	</div><br>
+<h2>Socket Connections</h2>
+<table>
+    <tr>
+        <th>Type</th>
+        <th>Port</th>
+        <th>Size</th>
+        <th>SSL</th>
+        <th>Closed</th>
+        <th>WebSocket</th>
+    </tr>
+    {f:dumpSockets}
+</table>
 {endif}
 
+<!-- Tab: Files -->
 {if:eq:parameter;"menu":3}
-	<div style="margin:0 10px 10px 0;float:left">
-	<table>
-	<tr><th>File<th>Bytes<th>File Sys<th>Ram Cached<th>Auth Only<th>Compressed<th>Template</th>
-	{f:printLoadedFiles}
-	</table>
-	</div>
+<h2>Loaded Files</h2>
+<table>
+    <tr>
+        <th>File</th>
+        <th>Bytes</th>
+        <th>Filesystem</th>
+        <th>RAM Cache</th>
+        <th>Auth Only</th>
+        <th>Compressed</th>
+        <th>Template</th>
+    </tr>
+    {f:printLoadedFiles}
+</table>
 {endif}
 
+<!-- Tab: Functions -->
 {if:eq:4:parameter;"menu"}
-	<div style="margin:0 10px 10px 0;float:left">
-	<table>
-	<tr><th>Plugin</th><th>Function<th>Type</th><th>File<th>Line<th>Status</th>
-	{f:printRegisteredFunctions}
-	</table>
-	</div>
+<h2>Registered Functions</h2>
+<p class="text-muted text-small">Template functions callable via <code>&#123;f:name&#125;</code></p>
+<table>
+    <tr>
+        <th>Plugin</th>
+        <th>Function</th>
+        <th>Type</th>
+        <th>File</th>
+        <th>Line</th>
+        <th>Status</th>
+    </tr>
+    {f:printRegisteredFunctions}
+</table>
 {endif}
 
+<!-- Tab: Conditions -->
 {if:eq:5:parameter;"menu"}
-	<div style="margin:0 10px 10px 0;float:left">
-	<table>
-	<tr><th>Plugin</th><th>Condition<th>Type</th><th>File<th>Line<th>Status</th>
-	{f:printRegisteredConditions}
-	</table>
-	</div>
+<h2>Registered Conditions</h2>
+<p class="text-muted text-small">Conditions usable via <code>&#123;if:name&#125;</code></p>
+<table>
+    <tr>
+        <th>Plugin</th>
+        <th>Condition</th>
+        <th>Type</th>
+        <th>File</th>
+        <th>Line</th>
+        <th>Status</th>
+    </tr>
+    {f:printRegisteredConditions}
+</table>
 {endif}
 
+<!-- Tab: Plugins -->
 {if:eq:6:parameter;"menu"}
-	<div style="margin:0 10px 10px 0;float:left">
-	<table>
-	<tr><th>Plugins<th>File<th>Type</th><th>Status
-	{f:printRegisteredPlugins}
-	</table>
-	</div>
+<h2>Loaded Plugins</h2>
+<table>
+    <tr>
+        <th>Name</th>
+        <th>Path</th>
+        <th>Type</th>
+        <th>Status</th>
+    </tr>
+    {f:printRegisteredPlugins}
+</table>
 {endif}
 
+<!-- Tab: Globals -->
 {if:eq:7:parameter;"menu"}
-	<div style="margin:0 10px 10px 0;float:left">
-	{f:dumpGlobals}
-	<table>
-	<tr><th>Key<th>Value
-	{loop:render;"globals_dump":"value":"key"}
-	<tr><td>{get:render;"key"}<td>{get:render;"value"}
-	{endloop}
-	</table>
-	</div>
+<h2>Global Variables</h2>
+<p class="text-muted text-small">Variables accessible via <code>&#123;get:global;"name"&#125;</code></p>
+{f:dumpGlobals}
+<table>
+    <tr>
+        <th>Key</th>
+        <th>Value</th>
+    </tr>
+    {loop:render;"globals_dump":"value":"key"}
+    <tr>
+        <td class="mono">{get:render;"key"}</td>
+        <td>{get:render;"value"}</td>
+    </tr>
+    {endloop}
+</table>
 {endif}
-
-
-
 
 {include:footer.inc}

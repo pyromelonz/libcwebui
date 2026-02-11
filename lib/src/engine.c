@@ -319,7 +319,7 @@ static void freeFunction(engine_infos* engine) {
 
 #ifdef _WEBSERVER_TEMPLATE_DEBUG_
 
-void printFoundEngineFunction(FUNCTION_PARAS* func) {
+static void printFoundEngineFunction(FUNCTION_PARAS* func) {
 	char buffer[100];
 	switch(func->function) {
 		case TEMPLATE_PLATFORM_FUNCTION:
@@ -356,7 +356,7 @@ void printFoundEngineFunction(FUNCTION_PARAS* func) {
 		sprintf(buffer,"TEMPLATE FUNCTION ERROR");
 		break;
 	}
-	LOG (TEMPLATE_LOG,NOTICE_LEVEL,0, "Engine found : %s %s",buffer,func->para1 );
+	LOG (TEMPLATE_LOG,NOTICE_LEVEL,0, "Engine found : %s %s",buffer, func->parameter[0].text ? func->parameter[0].text : "(null)" );
 }
 
 #endif
@@ -424,7 +424,7 @@ int processHTML(http_request* s, const char* prefix, const char *pagename, const
 
 
 #ifdef _WEBSERVER_TEMPLATE_DEBUG_
-			printFoundEngineFunction(func);
+			printFoundEngineFunction(&s->engine_current->func);
 #endif
 
 

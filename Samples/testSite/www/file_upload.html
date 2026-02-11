@@ -1,25 +1,41 @@
 TEMPLATE_V1
+{echo_off}
 {b:startSession}
-
-{set:render;"title":"Memory"}
+{set:render;"title":"File Upload"}
+{set:render;"nav_upload":"active"}
+{echo_on}
 
 {include:header.inc}
-<h1>Hallo File Upload!</h1>
 
-<form method="post" enctype="multipart/form-data">
-  <label>Wählen Sie eine Textdatei (*.txt, *.html usw.) von Ihrem Rechner aus.
-    <input id=form_file name="datei" type="file" size="50" accept="*"> 
-  </label>  
-  <button>… und ab geht die Post! per Form</button>
+<h1>File Upload</h1>
+
+<p class="text-muted">This page demonstrates file upload handling via HTML form and JavaScript.</p>
+
+<h2>Form Upload</h2>
+<p class="text-small text-muted">Standard HTML form with <code>enctype="multipart/form-data"</code></p>
+
+<form method="post" enctype="multipart/form-data" class="info-box">
+    <div class="info-row">
+        <label for="form_file">Select a file from your computer:</label>
+    </div>
+    <div class="info-row">
+        <input id="form_file" name="datei" type="file" size="50" accept="*">
+    </div>
+    <div class="info-row">
+        <button type="submit" class="btn">Upload via Form</button>
+    </div>
 </form>
 
-<button onclick=upload_file() >… und ab geht die Post! per JS</button>
+<h2>JavaScript Upload</h2>
+<p class="text-small text-muted">Upload file using JavaScript XMLHttpRequest</p>
 
-<br>
-<br>
+<div class="info-box">
+    <button onclick="upload_file()" class="btn btn-secondary">Upload via JavaScript</button>
+</div>
 
-<filedset>
-{f:file_upload}
-</filedset>
+<h2>Upload Result</h2>
+<div class="info-box">
+    {f:file_upload}
+</div>
 
 {include:footer.inc}

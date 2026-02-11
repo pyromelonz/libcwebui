@@ -155,7 +155,7 @@ void setWSVariableString(ws_variable* var, const char* text) {
 		var->extra.str_len = length;
 	} else {
 #ifdef _WEBSERVER_TEMPLATE_DEBUG_
-		LOG (TEMPLATE_LOG,NOTICE_LEVEL,0,"setWSVariableString %s %s",var->name, text);
+		LOG (TEMPLATE_LOG,NOTICE_LEVEL,0,"setWSVariableString %s %s",var->name, text ? text : "(null)");
 #endif
 		var->val.value_string = (char*) WebserverMalloc( 100 );
 		ret = snprintf(var->val.value_string, 100, "Var %s text=0x0",var->name);

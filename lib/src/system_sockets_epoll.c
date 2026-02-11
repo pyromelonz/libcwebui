@@ -11,6 +11,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <errno.h>
+#include <sys/epoll.h>
 
 #define MAX_EVENTS 64
 

@@ -20,7 +20,6 @@ SPDX-License-Identifier: MPL-2.0
 
 
 #include "webserver.h"
-#include "red_black_tree.h"
 #include "webserver_api_functions.h"
 
 
@@ -30,9 +29,9 @@ SPDX-License-Identifier: MPL-2.0
 
 
 
-rb_red_blk_tree *user_func_tree;
-rb_red_blk_tree *user_condition_tree;
-rb_red_blk_tree *websocket_handler_tree;
+hashmap_t *user_func_map;
+hashmap_t *user_condition_map;
+hashmap_t *websocket_handler_map;
 
 list_t plugin_liste;
 plugin_error_handler error_handler = 0;
@@ -40,11 +39,6 @@ plugin_error_handler error_handler = 0;
 plugin_s *current_plugin = 0;
 
 static void free_websocket_handler( void* a );
-
-static void free_user_func_key( UNUSED_PARA void* a) {
-	//printf("free_user_func_key\n");
-	// diese funktion macht nichts weil der key teil des elements ist
-}
 
 static void free_user_func_value( void* a) {
 	user_func_s* b = (user_func_s*)a;
@@ -96,10 +90,9 @@ void init_extension_api(void) {
 	initWebsocketApi();
 #endif
 
-	user_func_tree = RBTreeCreate(StrKeyComp, free_user_func_key, free_user_func_value, DummyFuncConst, DummyFunc);
-	user_condition_tree = RBTreeCreate(StrKeyComp, DummyFunc, free_user_cond_value, DummyFuncConst, DummyFunc);
-
-	websocket_handler_tree = RBTreeCreate(StrKeyComp, DummyFunc, free_websocket_handler, DummyFuncConst, DummyFunc);
+	user_func_map = hashmap_create();
+	user_condition_map = hashmap_create();
+	websocket_handler_map = hashmap_create();
 
 	ws_list_init(&plugin_liste);
 	ws_list_attributes_freer(&plugin_liste,free_plugin_info);
@@ -107,11 +100,11 @@ void init_extension_api(void) {
 }
 
 void free_extension_api(void) {
-	RBTreeDestroy(user_func_tree);
-	RBTreeDestroy(user_condition_tree);
-	RBTreeDestroy(websocket_handler_tree);
+	hashmap_destroy(user_func_map, free_user_func_value);
+	hashmap_destroy(user_condition_map, free_user_cond_value);
+	hashmap_destroy(websocket_handler_map, free_websocket_handler);
 	ws_list_destroy(&plugin_liste);
-	
+
 }
 
 void register_function(const char* name, user_function func, const char* file, int line) {
@@ -128,7 +121,7 @@ void register_function(const char* name, user_function func, const char* file, i
 	tmp->type = 0;
 	tmp->uf = func;
 
-	RBTreeInsert(user_func_tree, tmp->name, tmp);
+	hashmap_put(user_func_map, tmp->name, tmp);
 }
 
 #ifdef WEBSERVER_USE_PYTHON
@@ -137,9 +130,8 @@ void register_py_function( const char* name, PyObject * py_func, const char* fil
 
 	user_func_s *tmp ;
 
-	rb_red_blk_node* node = RBExactQuery(user_func_tree, (char*)name);
-	if (node != 0) {
-		tmp = node->info;
+	tmp = (user_func_s*) hashmap_get(user_func_map, name);
+	if (tmp != NULL) {
 		if ( tmp->type == 1 ) {
 			printf("reregister PyFunc: %s name \n",name);
 			tmp->file = file;
@@ -165,45 +157,43 @@ void register_py_function( const char* name, PyObject * py_func, const char* fil
 	tmp->type = 1;
 	tmp->py_func = py_func;
 
-	RBTreeInsert(user_func_tree, tmp->name, tmp);
+	hashmap_put(user_func_map, tmp->name, tmp);
 }
 #endif
 
 int check_platformFunction_exists(FUNCTION_PARAS* func) {
-	rb_red_blk_node* node;
+	user_func_s* uf;
 
 	if (func->parameter[0].text == 0){
 		LOG(TEMPLATE_LOG, INFO_LEVEL, 0, "%s","Platform Function Parameter 0 == 0");
 		return 1;
 	}
 
-	node = RBExactQuery(user_func_tree, func->parameter[0].text);
-	if (node == 0) {
-		func->platform_function = 0;
+	uf = (user_func_s*) hashmap_get(user_func_map, func->parameter[0].text);
+	if (uf == NULL) {
+		func->platform_function = NULL;
 		LOG(TEMPLATE_LOG, INFO_LEVEL, 0, "Platform Function %s not found", func->parameter[0].text);
 		return 1;
 	}
-	func->platform_function = node;
+	func->platform_function = uf;
 	return 0;
 }
 
 void engine_platformFunction(http_request *s, FUNCTION_PARAS* func) {
 	user_func_s *tmp;
-	rb_red_blk_node* node;
 	char dummy[] = "compiled in";
-       	char *name;
+	char *name;
 
 	if (func->parameter[0].text == 0){
 		return;
 	}
 
-	if ( func->platform_function == 0 ){
+	if ( func->platform_function == NULL ){
 		LOG( TEMPLATE_LOG, ERROR_LEVEL, s->socket->socket, "Error platform_function not set %s",func->parameter[0].text);
 		return;
 	}
-	node = func->platform_function;
 
-	tmp = (user_func_s*) node->info;
+	tmp = (user_func_s*) func->platform_function;
 #ifdef _WEBSERVER_ENGINE_PLUGINS_DEBUG_
 	LOG( TEMPLATE_LOG, NOTICE_LEVEL, s->socket->socket, "Calling Plugin Function %s enter", func->parameter[0].text);
 #endif
@@ -223,7 +213,7 @@ void engine_platformFunction(http_request *s, FUNCTION_PARAS* func) {
 	}
 
 #ifdef WEBSERVER_USE_PYTHON
-	if ( tmp->type == 1 )
+	if ( tmp->type == 1 && tmp->plugin != 0 )
 		py_call_engine_function( s, tmp, func );
 #endif
 
@@ -232,126 +222,124 @@ void engine_platformFunction(http_request *s, FUNCTION_PARAS* func) {
 	}
 
 #ifdef _WEBSERVER_ENGINE_PLUGINS_DEBUG_
-	LOG( TEMPLATE_LOG, NOTICE_LEVEL, s->socket->socket, "Calling Plugin Function %s exit", func->para[0]);
+	LOG( TEMPLATE_LOG, NOTICE_LEVEL, s->socket->socket, "Calling Plugin Function %s exit", func->parameter[0].text ? func->parameter[0].text : "(null)");
 #endif
 
 }
 
 
-void printRegisteredFunctions(http_request* s) {
-	stk_stack* stack;
-	rb_red_blk_node* node;
-	user_func_s *uf;
-	int status = 0;
-	char buffer[100];
+typedef struct {
+	http_request* s;
+	int print_internal;  /* 1 = print internal (plugin==0), 0 = print plugins */
+} print_func_ctx_t;
 
+static void print_registered_func_cb(const char* key, void* value, void* user_data) {
+	user_func_s *uf = (user_func_s*) value;
+	print_func_ctx_t *ctx = (print_func_ctx_t*) user_data;
+	int status = 0;
+	const char *status_text;
+	const char *status_class;
+	const char *type_str;
+	const char *plugin_name;
+	(void)key;
+
+	/* Filter: internal vs plugin */
+	if (ctx->print_internal && uf->plugin != 0) return;
+	if (!ctx->print_internal && uf->plugin == 0) return;
+
+	/* Check function status */
+	plugin_name = (uf->plugin == 0) ? "internal" : uf->plugin->name;
+	if (error_handler != 0) {
+		status = error_handler(PLUGIN_FUNCTION_CHECK_ERROR, plugin_name, uf->name, "crashed");
+	}
+
+	if (status == 0) {
+		status_text = "ok";
+		status_class = "status-ok";
+	} else {
+		status_text = "crashed";
+		status_class = "status-error";
+	}
+
+	type_str = (uf->type == 0) ? "C" : "Python";
+
+	printHTMLChunk(ctx->s->socket,
+		"<tr>"
+			"<td>%s</td>"
+			"<td class=\"mono\">%s</td>"
+			"<td>%s</td>"
+			"<td class=\"mono\">%s</td>"
+			"<td>%d</td>"
+			"<td><span class=\"%s\">%s</span></td>"
+		"</tr>",
+		plugin_name, uf->name, type_str, uf->file, uf->line, status_class, status_text);
+}
+
+void printRegisteredFunctions(http_request* s) {
+	print_func_ctx_t ctx;
 	ws_variable* var1 = getParameter(s, "reset_functions");
 
 	if (var1 != 0) {
 		error_handler(PLUGIN_FUNCTION_RESET_CRASHED, "", "", "");
 	}
 
-	stack = RBEnumerate(user_func_tree, (void*)"0", (void*)"z");
-	while (0 != StackNotEmpty(stack)) {
-		node = (rb_red_blk_node*) StackPop(stack);
-		uf = (user_func_s*) node->info;
+	ctx.s = s;
 
-		if (error_handler != 0) {
-			if (uf->plugin == 0){
-				status = error_handler(PLUGIN_FUNCTION_CHECK_ERROR, "internal", uf->name, "crashed");
-			}
-		}
+	/* First pass: internal functions (sorted) */
+	ctx.print_internal = 1;
+	hashmap_foreach_sorted(user_func_map, print_registered_func_cb, &ctx);
 
-		if (status == 0){
-			sprintf(buffer, "<FONT color=green>ok</font>");
-		}else{
-			sprintf(buffer, "<FONT color=red>crashed</font>");
-		}
+	/* Second pass: plugin functions (sorted) */
+	ctx.print_internal = 0;
+	hashmap_foreach_sorted(user_func_map, print_registered_func_cb, &ctx);
+}
 
+static void print_registered_cond_cb(const char* key, void* value, void* user_data) {
+	user_condition_s *uc = (user_condition_s*) value;
+	http_request *s = (http_request*) user_data;
+	int status = 0;
+	const char *status_text;
+	const char *status_class;
+	const char *plugin_name;
+	(void)key;
 
-
-
-		if (uf->plugin == 0){
-			printHTMLChunk(s->socket, "<tr><td>internal<td>%s<td>%s<td>%s<td>%d<td>%s", uf->name, "C", uf->file, uf->line, buffer);
-		}
-
+	/* Check condition status */
+	plugin_name = (uc->plugin == 0) ? "internal" : uc->plugin->name;
+	if (error_handler != 0) {
+		status = error_handler(PLUGIN_FUNCTION_CHECK_ERROR, plugin_name, uc->name, "crashed");
 	}
-	free(stack);
 
-	stack = RBEnumerate(user_func_tree, (void*)"0", (void*)"z");
-	while (0 != StackNotEmpty(stack)) {
-		node = (rb_red_blk_node*) StackPop(stack);
-		uf = (user_func_s*) node->info;
-
-		if (error_handler != 0) {
-			if (uf->plugin != 0){
-				status = error_handler(PLUGIN_FUNCTION_CHECK_ERROR, uf->plugin->name, uf->name, "crashed");
-			}
-		}
-
-		if (status == 0){
-			sprintf(buffer, "<FONT color=green>ok</font>");
-		}else{
-			sprintf(buffer, "<FONT color=red>crashed</font>");
-		}
-
-		char type[10];
-		if( uf->type == 0 ){
-			sprintf(type,"C");
-		}
-		if( uf->type == 1 ){
-			sprintf(type,"Python");
-		}
-
-		if (uf->plugin != 0){
-			printHTMLChunk(s->socket, "<tr><td>%s<td>%s<td>%s<td>%s<td>%d<td>%s", uf->plugin->name,  uf->name, type, uf->file, uf->line, buffer);
-		}
+	if (status == 0) {
+		status_text = "ok";
+		status_class = "status-ok";
+	} else {
+		status_text = "crashed";
+		status_class = "status-error";
 	}
-	free(stack);
+
+	/* Note: Conditions don't have a type field, so we use "-" */
+	printHTMLChunk(s->socket,
+		"<tr>"
+			"<td>%s</td>"
+			"<td class=\"mono\">%s</td>"
+			"<td>-</td>"
+			"<td class=\"mono\">%s</td>"
+			"<td>%d</td>"
+			"<td><span class=\"%s\">%s</span></td>"
+		"</tr>",
+		plugin_name, uc->name, uc->file, uc->line, status_class, status_text);
 }
 
 void printRegisteredConditions(http_request* s) {
-	stk_stack* stack;
-	rb_red_blk_node* node;
-	user_condition_s *uc;
-	int status = 0;
-	char buffer[100];
-
-	stack = RBEnumerate(user_condition_tree, (void*)"0", (void*)"z");
-	while (0 != StackNotEmpty(stack)) {
-		node = (rb_red_blk_node*) StackPop(stack);
-		uc = (user_condition_s*) node->info;
-
-		if (error_handler != 0) {
-			if (uc->plugin == 0){
-				status = error_handler(PLUGIN_FUNCTION_CHECK_ERROR, "internal", uc->name, "crashed");
-			}else{
-				status = error_handler(PLUGIN_FUNCTION_CHECK_ERROR, uc->plugin->name, uc->name, "crashed");
-			}
-		}
-
-		if (status == 0){
-			sprintf(buffer, "<FONT color=green>ok</font>");
-		}else{
-			sprintf(buffer, "<FONT color=red>crashed</font>");
-		}
-
-		if (uc->plugin == 0){
-			printHTMLChunk(s->socket, "<tr><td>internal<td>%s<td>%s<td>%d<td>%s", uc->name, uc->file, uc->line, buffer);
-		}else{
-			printHTMLChunk(s->socket, "<tr><td>%s<td>%s<td>%s<td>%d<td>%s", uc->plugin->name, uc->name, uc->file, uc->line, buffer);
-		}
-	}
-	free(stack);
+	hashmap_foreach_sorted(user_condition_map, print_registered_cond_cb, s);
 }
 
 CONDITION_RETURN engine_callCondition(http_request *s, FUNCTION_PARAS* func) {
 	user_condition_s *tmp;
 	CONDITION_RETURN cond_ret = CONDITION_ERROR;
 
-	rb_red_blk_node* node = RBExactQuery(user_condition_tree, func->parameter[0].text);
-	if (node != 0) {
-		tmp = (user_condition_s*) node->info;
+	tmp = (user_condition_s*) hashmap_get(user_condition_map, func->parameter[0].text);
+	if (tmp != NULL) {
 		cond_ret = tmp->uc(s, func);
 	}
 
@@ -375,7 +363,7 @@ void register_condition(const char* name, user_condition f, const char* file, in
 	tmp->file = file;
 	tmp->line = line;
 	tmp->plugin = current_plugin;
-	RBTreeInsert(user_condition_tree, tmp->name, tmp);
+	hashmap_put(user_condition_map, tmp->name, tmp);
 }
 
 
@@ -406,19 +394,18 @@ static void* free_websocket_handler_ele( const void* a ){
 
 void register_function_websocket_handler(const char* url, websocket_handler f, const char* file, int line) {
 	websocket_handler_s *tmp;
-	rb_red_blk_node* node = RBExactQuery(websocket_handler_tree, (char*) url);
 	websocket_handler_list_s *list;
 
-	if (node == 0) {
+	list = (websocket_handler_list_s*) hashmap_get(websocket_handler_map, url);
+
+	if (list == NULL) {
 		list = (websocket_handler_list_s*) WebserverMalloc( sizeof(websocket_handler_list_s) );
 		list->handler_list = (list_t*) WebserverMalloc( sizeof(list_t) );
 		ws_list_init( list->handler_list );
 		ws_list_attributes_freer( list->handler_list,free_websocket_handler_ele );
 		list->url = (char*) WebserverMalloc( strlen(url) + 1 );
 		strcpy(list->url, url);
-		RBTreeInsert(websocket_handler_tree, list->url, list);
-	} else {
-		list = (websocket_handler_list_s*) node->info;
+		hashmap_put(websocket_handler_map, list->url, list);
 	}
 
 	tmp = (websocket_handler_s*) WebserverMalloc( sizeof(websocket_handler_s) );
@@ -432,9 +419,9 @@ void register_function_websocket_handler(const char* url, websocket_handler f, c
 int handleWebsocketConnection(WEBSOCKET_SIGNALS signal, const char* guid, const char* url, const char binary , const char* msg, const unsigned long long len) {
 	websocket_handler_s *handler;
 	websocket_handler_list_s *list;
-	rb_red_blk_node* node = RBExactQuery(websocket_handler_tree, (char*) url);
-	if (node != 0) {
-		list = (websocket_handler_list_s*) node->info;
+
+	list = (websocket_handler_list_s*) hashmap_get(websocket_handler_map, url);
+	if (list != NULL) {
 		ws_list_iterator_start(list->handler_list);
 		while (ws_list_iterator_hasnext(list->handler_list)) {
 			handler = (websocket_handler_s*) ws_list_iterator_next(list->handler_list);

@@ -1,30 +1,62 @@
 TEMPLATE_V1
-{set:render;"title":"Websocket Test"}
+{echo_off}
+{set:render;"title":"WebSocket"}
+{set:render;"nav_websocket":"active"}
+{echo_on}
 
 {include:header.inc}
 
-<h1>Uhrzeit : <span id=uhr_zeit>Uhr noch nicht gestartet</span></h1>
+<h1>WebSocket Demo</h1>
 
-<h1>Hallo Websocket!</h1>
+<p class="text-muted">This page demonstrates WebSocket communication between browser and server.</p>
 
-Websocket Data1 : <span id=websocket_data1>Leer</span><br>
-<input type=button id=ws_create1 value="Button 1" data-handle=simple data-element=websocket_data1 ><br>
-<br>
+<h2>Live Clock</h2>
+<div class="info-box">
+    <div class="info-row">
+        <span class="info-label">Server Time</span>
+        <span class="info-value mono" id="uhr_zeit">Clock not started</span>
+    </div>
+</div>
 
-Websocket Data2 : <span id=websocket_data2>Leer</span><br>
-<input type=button id=ws_create2 value="Button 2" data-handle=simple data-element=websocket_data2 ><br> 
-<br>
+<h2>WebSocket Buttons</h2>
+<p class="text-small text-muted">Click buttons to send WebSocket messages and receive responses</p>
 
-Websocket Data3 : <span id=websocket_data3>Leer</span><br>
-<input type=button id=ws_create3 value="Button 3" data-handle=simple data-element=websocket_data3 ><br> 
-<br>
+<table>
+    <tr><th>Button</th><th>Response</th></tr>
+    <tr>
+        <td><input type="button" id="ws_create1" value="Button 1" data-handle="simple" data-element="websocket_data1" class="btn btn-secondary"></td>
+        <td><span id="websocket_data1" class="mono">Empty</span></td>
+    </tr>
+    <tr>
+        <td><input type="button" id="ws_create2" value="Button 2" data-handle="simple" data-element="websocket_data2" class="btn btn-secondary"></td>
+        <td><span id="websocket_data2" class="mono">Empty</span></td>
+    </tr>
+    <tr>
+        <td><input type="button" id="ws_create3" value="Button 3" data-handle="simple" data-element="websocket_data3" class="btn btn-secondary"></td>
+        <td><span id="websocket_data3" class="mono">Empty</span></td>
+    </tr>
+</table>
 
-<input type=button id=ws_send_ping value="Button Send Ping Command"><br> <!-- onclick=aberdas() -->
-<br>
+<h2>Ping Command</h2>
+<div class="info-box">
+    <input type="button" id="ws_send_ping" value="Send Ping" class="btn btn-secondary">
+</div>
 
+<h2>Echo Test</h2>
+<p class="text-small text-muted">Send a message and receive an echo response</p>
 
-send : <input type=text id=echo_text><input type=button id=echo_text_button value="send"><br><br>
-recv : <input type=text id=echo_answer><br>
-
+<div class="info-box">
+    <div class="info-row">
+        <span class="info-label">Send</span>
+        <span class="info-value">
+            <input type="text" id="echo_text" class="mono">
+            <input type="button" id="echo_text_button" value="Send" class="btn btn-secondary">
+        </span>
+    </div>
+    <div class="info-row">
+        <span class="info-label">Receive</span>
+        <span class="info-value"><input type="text" id="echo_answer" class="mono" readonly></span>
+    </div>
+</div>
 
 {include:footer.inc}

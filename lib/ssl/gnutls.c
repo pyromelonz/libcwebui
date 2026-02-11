@@ -14,7 +14,10 @@ SPDX-License-Identifier: MPL-2.0
 
 */
 
-#ifdef __GNUC__
+#include "WebserverConfig.h"
+
+#ifdef WEBSERVER_USE_GNUTLS_CRYPTO
+
 #include <gnutls/gnutls.h>
 #include <gnutls/crypto.h>
 #include <gnutls/extra.h>
@@ -24,9 +27,6 @@ SPDX-License-Identifier: MPL-2.0
 #include <sys/stat.h>
 #include <fcntl.h>
 #include "webserver.h"
-#endif
-
-#ifdef WEBSERVER_USE_GNUTLS_CRYPTO
 
 
 

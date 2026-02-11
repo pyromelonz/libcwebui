@@ -105,7 +105,7 @@ int main(int argc, char **argv) {
 		WebserverConfigSetText("ssl_file_path", "./");
 		WebserverConfigSetText("ssl_key_file", "server.pem");
 		WebserverConfigSetText("ssl_key_file_password", "password");
-		WebserverConfigSetText("ssl_dh_file", "dh1024.pem");
+		WebserverConfigSetText("ssl_dh_file", "dh2048.pem");
 		WebserverConfigSetText("ssl_ca_list_file", "root.pem");
 
 

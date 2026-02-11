@@ -6,12 +6,15 @@ on:
   pull_request:
     branches: [ master ]
 
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: ['ubuntu-22.04', 'ubuntu-24.04']
+        os: ['ubuntu-22.04', 'ubuntu-24.04', 'ubuntu-22.04-arm', 'ubuntu-24.04-arm']
         sample: ['SharedMain', 'SingleMain', 'SingleMainPython']
 
     steps:
@@ -25,6 +28,48 @@ jobs:
     - name: Build
       run: |
         cd Samples/Linux/${{ matrix.sample }}
+        make clean
+        make
+
+  config-variants:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: ['ubuntu-22.04', 'ubuntu-24.04', 'ubuntu-22.04-arm', 'ubuntu-24.04-arm']
+        variant: ['LinuxDebug', 'LinuxEpoll', 'LinuxEpollWebsockets', 'LinuxSelect', 'LinuxWebsocketNoSSL', 'LinuxWebsocketSelect', 'LinuxWebsocketSelectNoSSL']
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential python3-dev libevent-dev
+
+    - name: Build
+      run: |
+        cd tests/config_variants/${{ matrix.variant }}
+        make clean
+        make
+
+  ssl-variants:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: ['ubuntu-22.04', 'ubuntu-24.04', 'ubuntu-22.04-arm', 'ubuntu-24.04-arm']
+        variant: ['LinuxMbedTLS2', 'LinuxMbedTLS3', 'LinuxWolfSSL']
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential python3-dev libevent-dev cmake autoconf automake libtool
+
+    - name: Build
+      run: |
+        cd tests/config_variants/${{ matrix.variant }}
         make clean
         make
 

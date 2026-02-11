@@ -33,10 +33,15 @@ typedef enum {
 	CACHE_LOG,
 	SSL_LOG,
 	WEBSOCKET_LOG,
-	VARIABLE_LOG
+	VARIABLE_LOG,
+	CONFIG_LOG,
+	PROXY_LOG,
+	SESSION_LOG,
+	HASHMAP_LOG
 }LogChannels;
 
 typedef enum {
+	DEBUG_LEVEL,
 	NOTICE_LEVEL,
 	INFO_LEVEL,
 	WARNING_LEVEL,
@@ -54,7 +59,7 @@ extern "C" {
 #endif
 #ifdef __GNUC__
 	#if __GNUC__ > 2
-		#define LOG(a,b,c,d,ARGS...) addLog(a,b,(char*)__BASE_FILE__, __LINE__,__FUNCTION__,c,(char*)d, ARGS)
+		#define LOG(a,b,c,d,ARGS...) addLog(a,b,(char*)__BASE_FILE__, __LINE__,__FUNCTION__,c,(char*)d, ##ARGS)
 	#else
 		#define LOG(a,b,c,d,ARGS...)
 	#endif

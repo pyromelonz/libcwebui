@@ -1,17 +1,39 @@
 TEMPLATE_V1
+{echo_off}
 {set:render;"title":"Register"}
+{set:render;"nav_register":"active"}
+{echo_on}
 
 {include:header.inc}
 
-<h1>Hallo Welt!</h1>
+<h1>Session Registration</h1>
+
+<p class="text-muted">This page demonstrates registering a user in the session store.</p>
 
 {b:startSession}
 
-{b:dumpSessionStore}<br>
+<h2>Before Registration</h2>
+{b:dumpSessionStore}
 
-<h2>aufruf von &#123;f:register}</h2>{f:register}<br>
+<h2>Register Function</h2>
+<p class="text-small text-muted">Calling <code>&#123;f:register&#125;</code></p>
 
-<h2>{f:checkregister}</h2><br>
-{b:dumpSessionStore}<br>
+<div class="info-box">
+    <div class="info-row">
+        <span class="info-label">Result</span>
+        <span class="info-value">{f:register}</span>
+    </div>
+</div>
+
+<h2>Status Check</h2>
+<div class="info-box">
+    <div class="info-row">
+        <span class="info-label">Status</span>
+        <span class="info-value">{f:checkregister}</span>
+    </div>
+</div>
+
+<h2>After Registration</h2>
+{b:dumpSessionStore}
 
 {include:footer.inc}

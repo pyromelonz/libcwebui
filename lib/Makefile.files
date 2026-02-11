@@ -17,6 +17,7 @@ LIB_SOURCES := 	src/builtinFunctions.c \
 			src/header_send.c \
 			src/linked_list.c \
 			src/message_queue.c \
+			src/reverse_proxy.c \
 			src/server.c \
 			src/server_chunk_functions.c \
 			src/server_config.c \
@@ -41,6 +42,7 @@ LIB_SOURCES := 	src/builtinFunctions.c \
 			src/system_file_cache.c \
 			src/webserver_api_functions.c \
 			src/utils.c \
+			src/hashmap.c \
 			src/log.c \
 			src/variable.c \
 			src/variable_global.c \
@@ -48,9 +50,12 @@ LIB_SOURCES := 	src/builtinFunctions.c \
 			src/variable_render.c \
 			src/websockets.c \
 			src/websockets_send_recv.c \
+			src/websockets_streaming.c \
 			src/websocket_handler.c \
 			ssl/openssl.c \
-			ssl/mbedtls.c \
+			ssl/mbedtls2.c \
+			ssl/mbedtls3.c \
+			ssl/wolfssl.c \
 			python/py_utils.c \
 			python/py_plugin.c \
 			python/py_api_functions.c \

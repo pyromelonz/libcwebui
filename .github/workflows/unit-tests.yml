@@ -1,0 +1,67 @@
+name: Unit Tests
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libgtest-dev libevent-dev libssl-dev
+
+    - name: Build and run tests
+      run: |
+        cd tests/unittests
+        make test-ci
+
+    - name: Generate test summary
+      if: always()
+      run: |
+        # Extract test counts from JUnit XML
+        TESTS=$(grep -oP 'tests="\K[0-9]+' tests/unittests/test_results.xml | head -1)
+        FAILURES=$(grep -oP 'failures="\K[0-9]+' tests/unittests/test_results.xml | head -1)
+        ERRORS=$(grep -oP 'errors="\K[0-9]+' tests/unittests/test_results.xml | head -1 || echo "0")
+        TIME=$(grep -oP 'time="\K[0-9.]+' tests/unittests/test_results.xml | head -1)
+
+        # Calculate passed
+        PASSED=$((TESTS - FAILURES - ERRORS))
+
+        # Generate summary
+        echo "## 🧪 Unit Test Results" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        if [ "$FAILURES" = "0" ] && [ "$ERRORS" = "0" ]; then
+          echo "### ✅ All $TESTS tests passed" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "### ❌ $FAILURES failed, $PASSED passed out of $TESTS tests" >> $GITHUB_STEP_SUMMARY
+        fi
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "| Metric | Count |" >> $GITHUB_STEP_SUMMARY
+        echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+        echo "| Total Tests | $TESTS |" >> $GITHUB_STEP_SUMMARY
+        echo "| Passed | $PASSED |" >> $GITHUB_STEP_SUMMARY
+        echo "| Failed | $FAILURES |" >> $GITHUB_STEP_SUMMARY
+        echo "| Time | ${TIME}s |" >> $GITHUB_STEP_SUMMARY
+
+    - name: Upload test results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: test-results
+        path: tests/unittests/test_results.xml
+
+    - name: Test Report
+      uses: dorny/test-reporter@v1
+      if: always()
+      with:
+        name: Unit Tests
+        path: tests/unittests/test_results.xml
+        reporter: java-junit

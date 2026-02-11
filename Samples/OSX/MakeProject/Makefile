@@ -25,7 +25,8 @@ FILES= \
 	../../../lib/src/variable_global.c              ../../../lib/src/variable_render.c \
 	../../../lib/src/variable_store.c               ../../../lib/src/webserver_api_functions.c \
 	../../../lib/src/websocket_handler.c            ../../../lib/src/websockets.c \
-	../../../lib/src/websockets_send_recv.c         ../../../lib/ssl/openssl.c \
+	../../../lib/src/websockets_send_recv.c         ../../../lib/src/websockets_streaming.c \
+	../../../lib/src/reverse_proxy.c                ../../../lib/ssl/openssl.c \
 	../../../lib/platform/osx/platform-file-access.c \
 	../../../lib/platform/osx/platform-sockets.c \
 	../../../lib/platform/osx/system-unix.c \
@@ -36,49 +37,48 @@ FILES= \
 	../../testSite/src/var_test.c  \
 	../../testSite/src/websocket_api.c \
 	../../testSite/src/webserver_api.c  \
+	../../../lib/src/hashmap.c \
 	../../../lib/third_party/src/rb_tree/red_black_tree.c \
 	../../../lib/third_party/src/rb_tree/stack.c \
 	../../../lib/third_party/src/rb_tree/misc.c \
 	../../../lib/third_party/src/is_utf8/is_utf8.c \
-	../../../lib/third_party/src/miniz/miniz.c 
+	../../../lib/third_party/src/miniz/miniz.c
 
+# Detect Homebrew prefix (different on Intel vs Apple Silicon)
+HOMEBREW_PREFIX := $(shell brew --prefix 2>/dev/null || echo /usr/local)
 
-PY_FLAGS = $(shell python-config --includes)
-PY_LINK = $(shell python-config --libs)
+PY_FLAGS = $(shell python3-config --includes 2>/dev/null || echo "")
+PY_LINK = $(shell python3-config --libs 2>/dev/null || echo "")
 
 
 FLAGS= -I . -I../../../lib/include -I../../../lib/third_party/src/miniz/ -I../../../lib/third_party/src/rb_tree/ \
 	-I../../../lib/platform/include/ -I../../../lib/include/intern/  -I../../../lib/third_party/src/is_utf8/ \
-	-D_POSIX_SOURCE  -DSINGLE_MAIN -O3 -ggdb3 ${PY_FLAGS} -Wall -Wno-unused-result \
+	-I$(HOMEBREW_PREFIX)/include \
+	-DSINGLE_MAIN -O3 -ggdb3 ${PY_FLAGS} -Wno-unused-result \
 	-Werror=return-type -Werror=missing-declarations -Werror=old-style-definition \
-	-Werror=format -Wformat-nonliteral \
-	-DMINIZ_NO_ARCHIVE_APIS -DMINIZ_NO_ZLIB_COMPATIBLE_NAMES -DENABLE_LAUNCHER=OFF -DENABLE_EDITOR=OFF 
+	-Werror=format \
+	-DMINIZ_NO_ARCHIVE_APIS -DMINIZ_NO_ZLIB_COMPATIBLE_NAMES
 
-LIBS=-lc  -ldl -lpthread -levent -levent_pthreads -lz -lstdc++ # -lssl -lcrypto
+LIBS=-L$(HOMEBREW_PREFIX)/lib -lc -lssl -lcrypto -lpthread -levent -levent_pthreads -lstdc++
 
 .SILENT:
-
-
-
-all: check testSite
+all: testSite
 	echo "C++  main.cpp"
-	$(CC) $(FLAGS) -c main.cpp  -o main.o
+	$(CXX) $(FLAGS) -c main.cpp  -o main.o
 	echo "CC   www_css.c www_data.c ../lib/*.c"
-	$(CC) $(FLAGS) -std=gnu99 $(FILES) -flto main.o www_css.c www_data.c -o main $(LIBS) ${PY_LINK} 
+	$(CC) $(FLAGS) -std=gnu99 $(FILES) main.o  www_css.c www_data.c -o main $(LIBS) ${PY_LINK}
 	echo "LINK main"
 
-check:
-	bash check_installation.sh
-		
-testSite: 
+
+testSite:
 	echo "GEN  www_data.c "
 	../../../tools/pack_dir.py --dir ../../testSite/www --alias=/ --out www_data.c
-	
+
 	echo "GEN  www_css.c "
 	../../../tools/pack_dir.py --dir ../../testSite/css --alias=/css/ --out www_css.c
 
-	
+
 
 clean:
-	rm -f *.o main	www_data.c *.i *.bc *.s
-	
+	rm -f *.o main	www_data.c
+

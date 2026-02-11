@@ -25,10 +25,10 @@ SPDX-License-Identifier: MPL-2.0
 unsigned int getInt(const unsigned char *buffer)
 {
     unsigned int tmp=0;
-    tmp+=buffer[0];
-    tmp+=buffer[1]<<8;
-    tmp+=buffer[2]<<16;
-    tmp+=buffer[3]<<24;
+    tmp += (unsigned int)buffer[0];
+    tmp += (unsigned int)buffer[1] << 8;
+    tmp += (unsigned int)buffer[2] << 16;
+    tmp += (unsigned int)buffer[3] << 24;
     return tmp;
 }
 

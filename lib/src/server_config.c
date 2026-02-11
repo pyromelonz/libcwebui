@@ -59,6 +59,9 @@ void setConfigText(const char* name, const char* text) {
 
 void setConfigInt(const char* name, const int value) {
 	ws_variable *var;
+	if (value < -1) {
+		LOG(CONFIG_LOG, WARNING_LEVEL, 0, "Config '%s' has suspicious negative value: %d", name, value);
+	}
 	PlatformLockMutex(&config_v_store->lock);
 	var = newVariable(config_v_store, name, 0 );
 	setWSVariableInt(var, value);
